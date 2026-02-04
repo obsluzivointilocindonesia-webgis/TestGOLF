@@ -1,0 +1,275 @@
+body, html, #cesiumContainer {
+    width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+}
+
+.auth-box {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-family: sans-serif;
+}
+
+.auth-container {
+    background: #1e1e1e;
+    padding: 30px;
+    border-radius: 15px;
+    width: 90%; max-width: 350px;
+    text-align: center;
+    border: 1px solid #333;
+}
+
+.auth-input {
+    width: 100%; padding: 12px; margin: 10px 0;
+    border-radius: 5px; border: 1px solid #444;
+    background: #111; color: white;
+    box-sizing: border-box;
+}
+
+.auth-btn {
+    width: 100%; padding: 12px; margin-top: 15px;
+    background: #00ff88; color: #000;
+    border: none; border-radius: 5px; font-weight: bold; cursor: pointer;
+}
+
+.auth-switch { font-size: 0.8rem; margin-top: 15px; color: #aaa; }
+.auth-switch span { color: #00ff88; cursor: pointer; text-decoration: underline; }
+
+.ui-overlay {
+    position: absolute; top: 20px; left: 20px; z-index: 1000;
+    display: flex; flex-direction: column; gap: 5px;
+}
+
+.btn {
+    padding: 8px 15px; cursor: pointer; border: none; 
+    border-radius: 5px; font-weight: bold; color: white;
+    transition: 0.3s;
+    font-size: 14px;
+    margin: 2px;
+    cursor: pointer;
+}
+
+.menu-button-ops{
+    padding: 8px 15px; cursor: pointer; border: none; 
+    border-radius: 5px; font-weight: bold; color: rgb(0, 0, 0);
+    transition: 0.3s;
+    font-size: 16px;
+    margin: 2px;
+    cursor: pointer;
+}
+.menu-button {
+    padding: 8px 15px; cursor: pointer; border: none; 
+    border-radius: 5px; font-weight: bold; color: white;
+    transition: 0.3s;
+    font-size: 14px;
+    margin: 2px;
+    cursor: pointer;
+}
+
+.btn-navy { background: #000080; }
+.btn-dark { background: #2c3e50; }
+
+@media screen and (max-width: 768px) {
+    .menu-button-ops{
+        padding: 10px 20px; 
+        font-size: 12px;
+        margin: 3px;
+        width: 50%;
+        display: block;
+    }
+
+    .btn {
+        padding: 10px 10px; /* Area klik lebih luas */
+        font-size: 10px;    /* Tulisan lebih besar */
+        margin: 1px 2px;   /* Jarak antar tombol agar tidak salah tekan */
+        width: 50%;         /* Opsional: Tombol melebar hampir memenuhi layar */
+        display: block;     /* Membuat tombol berderet ke bawah */
+    }
+
+    .menu-button {
+        padding: 10px 10px; /* Area klik lebih luas */
+        font-size: 10px;    /* Tulisan lebih besar */
+        margin: 1px 2px;   /* Jarak antar tombol agar tidak salah tekan */
+        width: 50%;         /* Opsional: Tombol melebar hampir memenuhi layar */
+        display: block;     /* Membuat tombol berderet ke bawah */
+    }
+    /* Jika tombol berada dalam satu container/wadah */
+    #toolbar {
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%); /* Posisikan di tengah atas layar HP */
+        width: 100%;
+        text-align: center;
+    }
+    .chart-wrapper {
+        height: 50%; /* Lebih pendek di HP */
+    }
+    #score-panel {
+        font-size: 0.9rem;
+    }
+
+    .summary-card {
+        width: 140px; /* Diperkecil drastis */
+        padding: 8px;
+        left: 5px;
+        top: 5px;
+    }
+
+    .summary-card h3 {
+        font-size: 0.75rem; /* Judul lebih kecil */
+        margin-bottom: 5px;
+    }
+
+    .summary-grid {
+        gap: 5px; /* Jarak antar item dipersempit */
+    }
+
+    .label {
+        font-size: 0.55rem; /* Label (Total Strokes dll) sangat kecil */
+    }
+
+    .value {
+        font-size: 1rem; /* Angka tetap terbaca tapi tidak raksasa */
+    }
+
+    .status-badge {
+        font-size: 0.7rem;
+        padding: 3px;
+        margin-top: 8px;
+    }
+
+    #newGameBtn {
+        font-size: 0.65rem; /* Tombol diperkecil */
+        padding: 5px;
+    }
+
+    #toolbar-info {
+        font-size: 0.8rem;
+        padding: 6px;
+        max-width: 90vw;
+    }
+    .btn-golf {
+        font-size: 0.7rem;
+        padding: 6px;
+    }
+}
+
+#toolbar-info {
+    background-color: rgba(255, 255, 255, 0.8);
+    color: black; border: 1px solid #333;
+    border-radius: 10px; padding: 8px;
+    font-family: sans-serif; pointer-events: none;
+}
+
+#chartContainer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.8); /* Putih transparan */
+    z-index: 1500;
+    display: none; /* Muncul hanya saat ada data */
+    padding: 2px;
+    box-sizing: border-box;
+    border-top: 2px solid #ccc;
+    max-height: 80;
+    overflow-y: auto;
+}
+
+.chart-wrapper {
+    position: relative;
+    width: 100%;
+    height: 200px; /* Tinggi default desktop */
+}
+
+#cesiumContainer {
+    touch-action: none; /* Mencegah browser melakukan scroll saat kita menyentuh map */
+}
+
+.summary-card {
+    background: rgba(25, 25, 25, 0.9);
+    color: white;
+    padding: 5px;
+    border-radius: 3px;
+    border: 1px solid #444;
+    width: 220px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    margin-top: 1px;
+}
+
+.summary-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.label {
+    font-size: 0.7rem;
+    color: #aaa;
+    text-transform: uppercase;
+}
+
+.value {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #00ff88; /* Warna hijau khas golf */
+}
+
+.status-badge {
+    margin-top: 5px;
+    text-align: center;
+    padding: 5px;
+    background: #333;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.summary-card.minimized .summary-grid, 
+.summary-card.minimized #newGameBtn,
+.summary-card.minimized hr {
+    display: none; /* Sembunyikan isi saat dikecilkan */
+}
+
+.summary-card.minimized {
+    width: auto;
+    cursor: pointer;
+}
+.btn-golf {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border: none;
+    border-radius: 5px;
+    background: #3498db;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.scorecard-scroll-box {
+    width: 100%;
+    max-height: 300px; /* Batasi tinggi agar tidak menutupi seluruh layar HP */
+    overflow-x: auto;  /* Aktifkan scroll horizontal jika tabel terlalu lebar */
+    overflow-y: auto;  /* Aktifkan scroll vertikal jika data hole banyak */
+    margin-top: 10px;
+    border-radius: 8px;
+    -webkit-overflow-scrolling: touch; /* Biar scroll di iPhone mulus */
+}
+
+/* Mempercantik scrollbar agar tipis */
+.scorecard-scroll-box::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+.scorecard-scroll-box::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
