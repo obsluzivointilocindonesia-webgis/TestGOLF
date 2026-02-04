@@ -36,7 +36,9 @@
         <canvas id="profileChart"></canvas>
     </div>
 </div>
+
     <div class="ui-overlay">
+        
         <div id="hole-selector-container">
             <select id="holeSelect" class="menu-button-ops">
             <option value="">-- Pilih Hole --</option>
@@ -104,8 +106,6 @@
 <div id="report-section" style="margin-top: 20px;">
     <button id="viewDetailBtn" class="btn-golf">Lihat Detail Scorecard</button>
     <button id="exportPdfBtn" class="btn-golf" style="background: #27ae60;">Simpan ke PDF</button>
-    <button id="focusGpsBtn" style="position:fixed; bottom:20px; right:20px; width:50px; height:50px; border-radius:50%; background: white; border: 2px solid #00ff88; cursor: pointer; z-index: 1000;">
-    📍
 </button>
     <div id="table-scroll-container" class="scorecard-scroll-box">
         <div id="pdf-content" style="background: white; color: black; padding: 15px; display: none;">
@@ -135,8 +135,10 @@
     </div>
 </div>
     </div>
-</div>    
+    </div>    
     </div>
+    <button id="focusGpsBtn" style="position:fixed; bottom:20px; right:20px; width:50px; height:50px; border-radius:50%; background: white; border: 2px solid #00ff88; cursor: pointer; z-index: 1000;">
+    📍
     <script src="main.js"></script>
 </body>
 </html>
