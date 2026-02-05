@@ -4,7 +4,7 @@ Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOi
 const viewer = new Cesium.Viewer('cesiumContainer', {
     terrain: Cesium.Terrain.fromWorldTerrain(),
 });
-viewer.scene.globe.depthTestAgainstTerrain = true;
+viewer.scene.globe.depthTestAgainstTerrain = false;
 
 let activePoints = []; 
 let labelsList = []; // Untuk menyimpan label agar mudah dihapus
@@ -1135,7 +1135,7 @@ function startGpsTracking() {
 }
 
 function updateUserMarker(lat, lon) {
-    const position = Cesium.Cartesian3.fromDegrees(lon, lat);
+    const position = Cesium.Cartesian3.fromDegrees(lon, lat,0);
 
     if (!userLocationMarker) {
         // Jika belum ada, buat marker baru (Warna Biru)
@@ -1145,13 +1145,16 @@ function updateUserMarker(lat, lon) {
                 pixelSize: 15,
                 color: Cesium.Color.BLUE,
                 outlineColor: Cesium.Color.WHITE,
-                outlineWidth: 3
+                outlineWidth: 3,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY, 
+                heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND
             },
             label: {
                 text: "Posisi Saya",
                 font: "12px sans-serif",
                 verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                pixelOffset: new Cesium.Cartesian2(0, -20)
+                pixelOffset: new Cesium.Cartesian2(0, -20),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY
             }
         });
     } else {
