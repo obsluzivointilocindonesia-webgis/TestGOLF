@@ -654,23 +654,8 @@ document.addEventListener('DOMContentLoaded', () => {
 //-----------------------------------------------
 document.getElementById('saveTrackBtn').addEventListener('click', async() => {
     const holeId = document.getElementById('holeSelect').value;
-    if (!holeId) return 
-                        Swal.fire({
-                        title: 'TerraGOLF',
-                        text: 'Pilih Hole terlebih dahulu!',
-                        icon: 'info',
-                        confirmButtonColor: '#0088ff'
-                        });
-    //alert("Pilih Hole terlebih dahulu!");
-    if (activePoints.length < 2) return 
-                        Swal.fire({
-                        title: 'TerraGOLF',
-                        text: 'Minimal harus ada 2 titik (1 pukulan) untuk menyimpan track.',
-                        icon: 'info',
-                        confirmButtonColor: '#0088ff'
-                        });      
-    
-    //alert("Minimal harus ada 2 titik (1 pukulan) untuk menyimpan track.");
+    if (!holeId) return alert("Pilih Hole terlebih dahulu!");
+    if (activePoints.length < 2) return alert("Minimal harus ada 2 titik (1 pukulan) untuk menyimpan track.");
 
     const scoreNow = document.getElementById('score-panel');
     if (scoreNow) {
@@ -765,13 +750,7 @@ document.getElementById('saveTrackBtn').addEventListener('click', async() => {
     // Update UI Skor
     document.getElementById('current-score-text').textContent = `${finalStrokes} Strokes (${scoreTerm})`;
     updateSummaryUI();
-    Swal.fire({
-                        title: 'TerraGOLF',
-                        text: 'Tersimpan di Cloud dan Lokal',
-                        icon: 'info',
-                        confirmButtonColor: '#0088ff'
-                        });
-    //alert(`Tersimpan di Cloud dan Lokal!`)
+    alert(`Tersimpan di Cloud dan Lokal!`)
 });
 //new ronde
 // A. Fungsi untuk memulai ronde baru
@@ -786,13 +765,7 @@ document.getElementById('newGameBtn').addEventListener('click', () => {
         
         // Reset UI teks hole saat ini
         document.getElementById('current-score-text').textContent = "-";
-        //alert("Ronde baru dimulai!");
-        Swal.fire({
-                        title: 'TerraGOLF',
-                        text: 'Ronde baru dimulai',
-                        icon: 'info',
-                        confirmButtonColor: '#0088ff'
-                        });
+        alert("Ronde baru dimulai!");
     }
 });    
 
@@ -836,6 +809,8 @@ function updateSummaryUI() {
         statusEl.style.color = diff > 0 ? "#ff4444" : (diff < 0 ? "#00ff88" : "white");
     }
 }
+
+
 //---------minimize score container
 document.getElementById('score-summary-container').addEventListener('click', function(e) {
     // Jangan trigger jika yang diklik adalah tombol "New Game"
@@ -868,39 +843,30 @@ function clearAll() {
 
 //--------------------------------------------------------
 document.getElementById('historyBtn').addEventListener('click', async () => {
-    if (!currentUser) return 
-                        Swal.fire({
-                        title: 'TerraGOLF',
-                        text: 'Silahkan login terlebih dahulu',
-                        icon: 'info',
-                        confirmButtonColor: '#0088ff'
-                        });
-    
-    //alert("Silakan login terlebih dahulu.");
+    if (!currentUser) {
+        alert("Silakan login terlebih dahulu.");
+        return; // Hentikan proses jika belum login
+    }
+
+    // Tampilkan loading sederhana (opsional)
+    console.log("Mengambil data untuk:", currentUser.id);
 
     // Ambil data terbaru dari Supabase
     const { data: cloudTracks, error } = await sb
         .from('tracks')
         .select('*')
         .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false }); // Urutkan dari yang terbaru
+        .order('created_at', { ascending: false });
 
-    if (error) return 
-                        Swal.fire({
-                        title: 'TerraGOLF',
-                        text: 'Gagal memanggil riwayat',
-                        icon: 'info',
-                        confirmButtonColor: '#0088ff'
-                        });
-    //alert("Gagal mengambil riwayat: " + error.message);
-    if (!cloudTracks || cloudTracks.length === 0) return 
-                        Swal.fire({
-                        title: 'TerraGOLF',
-                        text: 'Belum ada riwayat tersimpan di cloud.',
-                        icon: 'info',
-                        confirmButtonColor: '#0088ff'
-                        });
-    //alert("Belum ada riwayat tersimpan di cloud.");
+    if (error) {
+        alert("Gagal mengambil riwayat: " + error.message);
+        return;
+    }
+
+    if (!cloudTracks || cloudTracks.length === 0) {
+        alert("Belum ada riwayat tersimpan di cloud.");
+        return;
+    }
 
     // Susun pesan untuk Prompt
     let message = "Pilih Riwayat untuk ditampilkan di Peta (Ketik nomor):\n";
@@ -1442,5 +1408,15 @@ async function loadTracksFromCloud() {
 
         localStorage.setItem('golf_tracks', JSON.stringify(formattedData));
         updateSummaryUI(); // Update tabel scorecard kamu
+    }
+}
+
+// Fungsi universal untuk buka/tutup elemen
+function toggleElement(elementId) {
+    const el = document.getElementById(elementId);
+    if (el.style.display === "none" || el.style.display === "") {
+        el.style.display = "block";
+    } else {
+        el.style.display = "none";
     }
 }
