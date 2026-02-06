@@ -1,4 +1,11 @@
 // 1. KONFIGURASI AWAL
+//tambahan untuk supabase
+let currentUser = null;
+let userLat = 0, userLon = 0;
+const supabaseUrl = 'https://jltjrfhbreswadzlexzg.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsdGpyZmhicmVzd2FkemxleHpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjA4NjIsImV4cCI6MjA4NTY5Njg2Mn0.mS7QjBoWBS-xYZcAE--SaZHioJ_RqA57l_Bs5p6ppag';
+const sb = supabase.createClient(supabaseUrl, supabaseKey);
+
 Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzY2ZhMGQ3MS1mYzYwLTQ1NzktODY1Mi1lODRhZjRmMWE4Y2EiLCJpZCI6Mzg0MjAyLCJpYXQiOjE3Njk1Njg5ODJ9.5U2zZd_um-3-iYrpnfZg1Xt7eI7N_CPTCQHoa2xB0jQ";
 
 const viewer = new Cesium.Viewer('cesiumContainer', {
@@ -18,7 +25,6 @@ let isContourOn = false;         // Status tombol ON/OFF
 let currentContourDataSource = null; // Gunakan DataSource untuk GeoJSON
 let currentContourLayer = null;
 let userLocationMarker = null;
-// Cek apakah sudah ada ronde aktif di browser
 let currentRoundId = localStorage.getItem('current_round_id');
 
 // Jika belum ada (baru pertama kali buka aplikasi), buat satu ID awal
@@ -195,7 +201,7 @@ function updateVisuals() {
         });
         labelsList.push(infoLabel);
     }
-    generateMultiPointProfile();
+    
 }
 // 5. EVENT HANDLER KLIK
 // --- REVISI EVENT HANDLER UNTUK SUPPORT HP & DESKTOP ---
@@ -238,6 +244,11 @@ handler.setInputAction(async function (movement) {
     
     activePoints.push({ position: cartesian, entity: v });
     updateVisuals();
+    // HANYA proses grafik untuk 2 titik terakhir setelah titik baru diletakkan
+    if (activePoints.length >= 2) {
+        const lastSegment = activePoints.slice(-2);
+        generateMultiPointProfile(lastSegment); 
+    }
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
 // MULAI GESER (Support Mouse Down & Touch Start)
@@ -279,7 +290,11 @@ handler.setInputAction(function() {
         // AKTIFKAN KEMBALI KAMERA
         viewerControls.enableInputs = true; 
         
-        generateMultiPointProfile();
+        // Panggil ini setiap kali user menambah titik baru (pukulan baru)
+    if (activePoints.length >= 2) {
+        const lastSegment = activePoints.slice(-2); 
+        generateMultiPointProfile(lastSegment); // Hanya kirim 2 titik terakhir
+    }
     }
 }, Cesium.ScreenSpaceEventType.LEFT_UP);
 
@@ -310,27 +325,33 @@ document.getElementById('undoBtn').addEventListener('click', () => {
     updateVisuals();
 });
 
-
 // 6. MULTI-POINT PROFILE
-async function generateMultiPointProfile() {
+async function generateMultiPointProfile(targetPoints = activePoints) {
+    if (targetPoints.length < 2) return;
+
     const totalSamples = 50;
     const labels = [];
     const heights = [];
-    const positions = activePoints.map(p => p.position);
+    const positions = targetPoints.map(p => p.position);
     
     let totalDist = 0;
-    for (let i = 0; i < positions.length - 1; i++) totalDist += Cesium.Cartesian3.distance(positions[i], positions[i+1]);
+    for (let i = 0; i < positions.length - 1; i++) {
+        totalDist += Cesium.Cartesian3.distance(positions[i], positions[i+1]);
+    }
 
     let cumDist = 0;
     for (let i = 0; i < positions.length - 1; i++) {
         const start = positions[i];
         const end = positions[i+1];
         const segD = Cesium.Cartesian3.distance(start, end);
+        // Tentukan jumlah sampel untuk segmen ini
         const segS = Math.max(2, Math.floor((segD / totalDist) * totalSamples));
 
         for (let j = 0; j < segS; j++) {
             const r = j / segS;
             const p = Cesium.Cartesian3.lerp(start, end, r, new Cesium.Cartesian3());
+            
+            // KUNCI: Tetap menggunakan clampToHeight agar mengikuti tileset
             const cl = await viewer.scene.clampToHeightMostDetailed([p]);
             if (cl[0]) {
                 const h = Cesium.Cartographic.fromCartesian(cl[0]).height;
@@ -340,10 +361,12 @@ async function generateMultiPointProfile() {
         }
         cumDist += segD;
     }
+    
     document.getElementById('chartContainer').style.display = 'block';
     renderChart(labels, heights);
 }
 
+//---------------------
 function renderChart(labels, data) {
     const ctx = document.getElementById('profileChart').getContext('2d');
     if (profileChart) profileChart.destroy();
@@ -505,7 +528,12 @@ document.getElementById('holeSelect').addEventListener('change', async (e) => {
 
 document.getElementById('contourBtn').addEventListener('click', async function() {
     const holeId = document.getElementById('holeSelect').value;
-    if (!holeId) return alert("Silakan pilih Hole terlebih dahulu!");
+    if (!holeId) return Swal.fire({
+                        title: 'TerraGOLF',
+                        text: 'Silahkan pilih Hole terlebih dahulu!',
+                        icon: 'info',
+                        confirmButtonColor: '#00ff88'
+        });//alert("Silakan pilih Hole terlebih dahulu!");
 
     const data = holeData[holeId];
     isContourOn = !isContourOn;
@@ -621,13 +649,28 @@ document.getElementById('clearBtn').addEventListener('click', () => {
 
 //----------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
-    updateSummaryScore();
+    updateSummaryUI();
 });
 //-----------------------------------------------
-document.getElementById('saveTrackBtn').addEventListener('click', () => {
+document.getElementById('saveTrackBtn').addEventListener('click', async() => {
     const holeId = document.getElementById('holeSelect').value;
-    if (!holeId) return alert("Pilih Hole terlebih dahulu!");
-    if (activePoints.length < 2) return alert("Minimal harus ada 2 titik (1 pukulan) untuk menyimpan track.");
+    if (!holeId) return 
+                        Swal.fire({
+                        title: 'TerraGOLF',
+                        text: 'Pilih Hole terlebih dahulu!',
+                        icon: 'info',
+                        confirmButtonColor: '#0088ff'
+                        });
+    //alert("Pilih Hole terlebih dahulu!");
+    if (activePoints.length < 2) return 
+                        Swal.fire({
+                        title: 'TerraGOLF',
+                        text: 'Minimal harus ada 2 titik (1 pukulan) untuk menyimpan track.',
+                        icon: 'info',
+                        confirmButtonColor: '#0088ff'
+                        });      
+    
+    //alert("Minimal harus ada 2 titik (1 pukulan) untuk menyimpan track.");
 
     const scoreNow = document.getElementById('score-panel');
     if (scoreNow) {
@@ -692,11 +735,43 @@ document.getElementById('saveTrackBtn').addEventListener('click', () => {
     allTracks.push(newEntry);
     localStorage.setItem('golf_tracks', JSON.stringify(allTracks));
 
+    //Simpan ke SUPABASE
+    // --- START: MODIFIKASI SUPABASE SYNC ---
+    // Pastikan user sudah login sebelum kirim ke cloud
+    if (currentUser) {
+        try {
+            const { error } = await sb
+                .from('tracks')
+                .insert([{
+                    user_id: currentUser.id,
+                    round_id: String(newEntry.roundId), // Supabase suka string untuk ID
+                    hole_number: parseInt(newEntry.hole),
+                    par: newEntry.par,
+                    strokes: newEntry.strokes,
+                    score_term: newEntry.scoreTerm,
+                    points: newEntry.points // Kolom JSONB di Supabase
+                }]);
+
+            if (error) throw error;
+            console.log("Berhasil sinkronisasi ke Supabase!");
+        } catch (err) {
+            console.error("Gagal sinkronisasi ke Cloud:", err.message);
+            // Tetap lanjut karena sudah tersimpan di LocalStorage
+        }
+    }
+    // --- END: MODIFIKASI SUPABASE SYNC ---
+
+
     // Update UI Skor
     document.getElementById('current-score-text').textContent = `${finalStrokes} Strokes (${scoreTerm})`;
     updateSummaryUI();
-   // alert(`Track Berhasil Disimpan!\nHole ${holeId} | Skor: ${scoreTerm}`);
-    alert(`Tersimpan di Ronde Aktif!`)
+    Swal.fire({
+                        title: 'TerraGOLF',
+                        text: 'Tersimpan di Cloud dan Lokal',
+                        icon: 'info',
+                        confirmButtonColor: '#0088ff'
+                        });
+    //alert(`Tersimpan di Cloud dan Lokal!`)
 });
 //new ronde
 // A. Fungsi untuk memulai ronde baru
@@ -711,7 +786,13 @@ document.getElementById('newGameBtn').addEventListener('click', () => {
         
         // Reset UI teks hole saat ini
         document.getElementById('current-score-text').textContent = "-";
-        alert("Ronde baru dimulai!");
+        //alert("Ronde baru dimulai!");
+        Swal.fire({
+                        title: 'TerraGOLF',
+                        text: 'Ronde baru dimulai',
+                        icon: 'info',
+                        confirmButtonColor: '#0088ff'
+                        });
     }
 });    
 
@@ -778,30 +859,67 @@ function clearAll() {
     activePoints = [];
     labelsList = [];
     // Sembunyikan chart
-    if (profileChart) profileChart.destroy();
+    if (profileChart) {
+        profileChart.destroy();
+        profileChart = null;
+    }
     document.getElementById('chartContainer').style.display = 'none';
 }
 
 //--------------------------------------------------------
-document.getElementById('historyBtn').addEventListener('click', () => {
-    let allTracks = JSON.parse(localStorage.getItem('golf_tracks') || '[]');
-    if (allTracks.length === 0) return alert("Belum ada riwayat tersimpan.");
+document.getElementById('historyBtn').addEventListener('click', async () => {
+    if (!currentUser) return 
+                        Swal.fire({
+                        title: 'TerraGOLF',
+                        text: 'Silahkan login terlebih dahulu',
+                        icon: 'info',
+                        confirmButtonColor: '#0088ff'
+                        });
+    
+    //alert("Silakan login terlebih dahulu.");
 
-    let message = "Pilih Riwayat (Ketik nomor urut):\n";
-    allTracks.forEach((t, index) => {
-        message += `${index + 1}. Hole ${t.hole} - ${t.date}\n`;
+    // Ambil data terbaru dari Supabase
+    const { data: cloudTracks, error } = await sb
+        .from('tracks')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false }); // Urutkan dari yang terbaru
+
+    if (error) return 
+                        Swal.fire({
+                        title: 'TerraGOLF',
+                        text: 'Gagal memanggil riwayat',
+                        icon: 'info',
+                        confirmButtonColor: '#0088ff'
+                        });
+    //alert("Gagal mengambil riwayat: " + error.message);
+    if (!cloudTracks || cloudTracks.length === 0) return 
+                        Swal.fire({
+                        title: 'TerraGOLF',
+                        text: 'Belum ada riwayat tersimpan di cloud.',
+                        icon: 'info',
+                        confirmButtonColor: '#0088ff'
+                        });
+    //alert("Belum ada riwayat tersimpan di cloud.");
+
+    // Susun pesan untuk Prompt
+    let message = "Pilih Riwayat untuk ditampilkan di Peta (Ketik nomor):\n";
+    cloudTracks.forEach((t, index) => {
+        const tDate = new Date(t.created_at).toLocaleString('id-ID');
+        message += `${index + 1}. Hole ${t.hole_number} - ${tDate}\n`;
     });
 
     const choice = prompt(message);
     const index = parseInt(choice) - 1;
-    const selectedTrack = allTracks[index];
+    const selected = cloudTracks[index];
 
-    if (selectedTrack) {
-        clearAll(); // Sekarang fungsi ini sudah ada
+    if (selected) {
+        clearAll(); // Bersihkan peta dari titik aktif sebelumnya
 
-        selectedTrack.points.forEach(p => {
-            // Gunakan Cartesian3 dari derajat yang disimpan
-            const position = Cesium.Cartesian3.fromDegrees(p.lng, p.lat, p.height);
+        // Loop melalui data 'points' (JSON) dari Supabase
+        selected.points.forEach(p => {
+            // Catatan: Pastikan nama properti koordinat (lat/lng/lng) sesuai dengan saat simpan
+            const position = Cesium.Cartesian3.fromDegrees(p.lng || p.lon, p.lat, p.height || 0);
             
             const v = viewer.entities.add({
                 position: position,
@@ -816,43 +934,74 @@ document.getElementById('historyBtn').addEventListener('click', () => {
             activePoints.push({ position: position, entity: v });
         });
         
-        // PENTING: Update kamera ke lokasi track agar langsung terlihat
+        // Update Kamera
         if (activePoints.length > 0) {
             viewer.zoomTo(activePoints.map(p => p.entity));
         }
-        //-----------------------
+
         document.getElementById('current-score-text').textContent = 
-        `${selectedTrack.strokes} Strokes (${selectedTrack.scoreTerm || 'N/A'}) - PAR ${selectedTrack.par}`;
+            `${selected.strokes} Strokes (${selected.score_term || 'N/A'}) - PAR ${selected.par}`;
+        
         updateVisuals();
-        alert(`Memuat Track Hole ${selectedTrack.hole}`);
+        generateMultiPointProfile(activePoints); // Kirim semua titik (Default)
+        alert(`Memuat Track Hole ${selected.hole_number}`);
     }
 });
 
 // Fungsi untuk menghapus SEMUA atau SALAH SATU riwayat
-function deleteTrackHistory() {
-    let allTracks = JSON.parse(localStorage.getItem('golf_tracks') || '[]');
-    if (allTracks.length === 0) return alert("Tidak ada data untuk dihapus.");
+async function deleteTrackHistory() {
+    if (!currentUser) return alert("Silakan login terlebih dahulu.");
+
+    // Ambil data untuk ditampilkan di list hapus
+    const { data: cloudTracks, error } = await sb
+        .from('tracks')
+        .select('id, hole_number, created_at')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false });
+
+    if (error) return alert("Gagal mengambil data: " + error.message);
+    if (!cloudTracks || cloudTracks.length === 0) return alert("Tidak ada data untuk dihapus.");
 
     let message = "Ketik nomor track yang ingin DIHAPUS (atau ketik 'ALL' untuk hapus semua):\n";
-    allTracks.forEach((t, index) => {
-        message += `${index + 1}. Hole ${t.hole} - ${t.date}\n`;
+    cloudTracks.forEach((t, index) => {
+        const tDate = new Date(t.created_at).toLocaleString('id-ID');
+        message += `${index + 1}. Hole ${t.hole_number} - ${tDate}\n`;
     });
 
     const choice = prompt(message);
-    
-    if (choice === null) return; // User tekan cancel
+    if (choice === null) return;
 
     if (choice.toUpperCase() === 'ALL') {
-        if (confirm("Hapus semua riwayat?")) {
-            localStorage.removeItem('golf_tracks');
-            alert("Semua riwayat telah dihapus.");
+        if (confirm("Hapus SEMUA riwayat Anda secara permanen di Cloud?")) {
+            const { error: delError } = await sb
+                .from('tracks')
+                .delete()
+                .eq('user_id', currentUser.id);
+
+            if (delError) alert("Gagal hapus: " + delError.message);
+            else {
+                localStorage.removeItem('golf_tracks'); // Bersihkan backup lokal juga
+                alert("Semua riwayat di cloud dan lokal telah di hapus.");
+                location.reload(); // Refresh untuk update UI
+            }
         }
     } else {
         const index = parseInt(choice) - 1;
-        if (allTracks[index]) {
-            const removed = allTracks.splice(index, 1);
-            localStorage.setItem('golf_tracks', JSON.stringify(allTracks));
-            alert(`Track Hole ${removed[0].hole} berhasil dihapus.`);
+        const targetTrack = cloudTracks[index];
+
+        if (targetTrack) {
+            if (confirm(`Hapus Track Hole ${targetTrack.hole_number}?`)) {
+                const { error: delError } = await sb
+                    .from('tracks')
+                    .delete()
+                    .eq('id', targetTrack.id); // Hapus spesifik ID
+
+                if (delError) alert("Gagal hapus: " + delError.message);
+                else {
+                    alert("Berhasil dihapus.");
+                    location.reload();
+                }
+            }
         } else {
             alert("Nomor tidak valid.");
         }
@@ -860,51 +1009,21 @@ function deleteTrackHistory() {
 }
 
 // 8. FUNGSI HAPUS RIWAYAT
-document.getElementById('deleteHistoryBtn').addEventListener('click', () => {
-    let allTracks = JSON.parse(localStorage.getItem('golf_tracks') || '[]');
+// Mengupdate event listener tombol hapus agar sinkron dengan Supabase
+document.getElementById('deleteHistoryBtn').addEventListener('click', async () => {
+    // Kita panggil fungsi deleteTrackHistory yang sudah mendukung Cloud
+    await deleteTrackHistory();
     
-    if (allTracks.length === 0) {
-        return alert("Tidak ada riwayat untuk dihapus.");
+    // Setelah dihapus di cloud, bersihkan visual di peta agar tidak membingungkan
+    if (typeof clearAll === "function") {
+        clearAll();
     }
-
-    // Buat daftar riwayat untuk dipilih
-    let message = "Ketik nomor track yang ingin DIHAPUS (atau ketik 'ALL' untuk hapus semua):\n";
-    allTracks.forEach((t, index) => {
-        message += `${index + 1}. Hole ${t.hole} - ${t.date}\n`;
-    });
-
-    const choice = prompt(message);
     
-    // Jika user klik 'Cancel'
-    if (choice === null) return; 
-
-    if (choice.toUpperCase() === 'ALL') {
-        if (confirm("Apakah Anda yakin ingin menghapus SEMUA riwayat?")) {
-            localStorage.removeItem('golf_tracks');
-            clearAll(); // Bersihkan peta juga
-            alert("Semua riwayat telah dihapus.");
-        }
-    } else {
-        const index = parseInt(choice) - 1;
-        if (!isNaN(index) && allTracks[index]) {
-            const removedHole = allTracks[index].hole;
-            const removedDate = allTracks[index].date;
-            
-            // Hapus satu item dari array
-            allTracks.splice(index, 1);
-            
-            // Simpan kembali ke localStorage
-            localStorage.setItem('golf_tracks', JSON.stringify(allTracks));
-            
-            // Opsional: Jika track yang dihapus adalah yang sedang tampil, bersihkan peta
-            clearAll(); 
-            
-            alert(`Riwayat Hole ${removedHole} (${removedDate}) berhasil dihapus.`);
-        } else {
-            alert("Nomor tidak valid atau tidak ditemukan.");
-        }
-    }
+    // Update tabel scorecard agar baris yang dihapus hilang dari layar
+    updateSummaryUI();
 });
+
+//------------------
 
 function getGolfTerm(strokes, par) {
     const diff = strokes - par;
@@ -1005,72 +1124,38 @@ document.getElementById('toggle-auth').addEventListener('click', () => {
 });
 
 // 2. Logika Utama Tombol Auth
-document.getElementById('auth-primary-btn').addEventListener('click', () => {
+document.getElementById('auth-primary-btn').addEventListener('click', async () => {
     const email = document.getElementById('auth-email').value;
     const pass = document.getElementById('auth-pass').value;
-    const users = JSON.parse(localStorage.getItem('golf_users') || '[]');
+    const fullName = document.getElementById('auth-name').value;
 
-    if (isRegisterMode) {
-        // PROSES DAFTAR
-        const name = document.getElementById('auth-name').value;
-        if (!email || !pass || !name) return alert("Isi semua bidang!");
-        
-        const newUser = {
-            email, pass, name,
-            joinDate: new Date().toISOString(), // Penting untuk cek trial 7 hari
-            isPaid: false
-        };
-        users.push(newUser);
-        localStorage.setItem('golf_users', JSON.stringify(users));
-        alert("Pendaftaran Berhasil! Silakan Login.");
-        location.reload();
-    } else {
-        // PROSES LOGIN
-        const user = users.find(u => u.email === email && u.pass === pass);
-        if (user) {
-            localStorage.setItem('active_user', JSON.stringify(user));
-            checkTrialAccess(); // Langsung cek akses setelah login
+    try {
+        if (isRegisterMode) {
+            const { data, error } = await sb.auth.signUp({
+                email, password: pass,
+                options: { data: { full_name: fullName } }
+            });
+            if (error) throw error;
+            alert("Pendaftaran berhasil! Cek email (atau langsung login jika konfirmasi email dimatikan).");
         } else {
-            alert("Email atau password salah!");
+            const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+            if (error) throw error;
+
+            console.log("Login sukses!");
+            // Sembunyikan overlay secara manual dulu sebelum reload
+            document.getElementById('auth-overlay').style.display = 'none';
+            
+            // Reload hanya jika perlu untuk refresh state
+            window.location.reload();
         }
+    } catch (err) {
+        alert("Pesan: " + err.message);
+        console.error(err);
     }
 });
 
 // 3. Fungsi Cek Akses (Trial 7 Hari / Berbayar)
-function checkTrialAccess() {
-    const activeUser = JSON.parse(localStorage.getItem('active_user'));
-    const overlay = document.getElementById('auth-overlay');
-
-    if (!activeUser) {
-        overlay.style.display = 'flex';
-        return;
-    }
-
-    // Hitung selisih hari
-    const joinDate = new Date(activeUser.joinDate);
-    const today = new Date();
-    const diffTime = Math.abs(today - joinDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (!activeUser.isPaid && diffDays > 7) {
-        // Jika masa trial habis dan belum bayar
-        document.getElementById('auth-title').textContent = "Masa Trial Berakhir";
-        document.getElementById('auth-subtitle').textContent = "Masa gratis 7 hari Anda sudah habis. Silakan hubungi admin untuk aktivasi bulanan.";
-        document.getElementById('auth-email').style.display = 'none';
-        document.getElementById('auth-pass').style.display = 'none';
-        document.getElementById('auth-primary-btn').textContent = "Hubungi Admin (WhatsApp)";
-        document.getElementById('auth-primary-btn').onclick = () => window.open('https://wa.me/62812345678');
-        overlay.style.display = 'flex';
-    } else {
-        // Akses diberikan
-        overlay.style.display = 'none';
-        console.log(`Selamat Datang, ${activeUser.name}. Hari ke-${diffDays} dari 7 hari trial.`);
-    }
-}
-
 // Jalankan pengecekan setiap halaman di-load
-checkTrialAccess();
-
 function checkTrialAccess() {
     const activeUser = JSON.parse(localStorage.getItem('active_user'));
     const overlay = document.getElementById('auth-overlay');
@@ -1096,13 +1181,33 @@ function checkTrialAccess() {
     } else {
         overlay.style.display = 'none';
     }
-}
+} checkTrialAccess();
 
 // 3. Fungsi Tombol Logout
-document.getElementById('logoutBtn').addEventListener('click', () => {
+document.getElementById('logoutBtn').addEventListener('click', async () => {
     if (confirm("Apakah Anda yakin ingin logout?")) {
-        localStorage.removeItem('active_user'); // Hapus sesi
-        location.reload(); // Refresh halaman akan otomatis memicu form login
+        try {
+            // 1. Perintah resmi ke Supabase untuk menghapus sesi
+            const { error } = await sb.auth.signOut();
+            
+            if (error) throw error;
+
+            // 2. Bersihkan sisa-sisa data di LocalStorage (opsional tapi disarankan)
+            localStorage.clear(); 
+
+            // 3. Reset variabel global aplikasi
+            currentUser = null;
+            activePoints = [];
+
+            alert("Anda telah berhasil keluar.");
+            
+            // 4. Refresh halaman untuk kembali ke layar login (Overlay)
+            location.reload();
+            
+        } catch (err) {
+            console.error("Gagal logout:", err.message);
+            alert("Terjadi kesalahan saat logout: " + err.message);
+        }
     }
 });
 
@@ -1133,7 +1238,7 @@ function startGpsTracking() {
         alert("Perangkat Anda tidak mendukung GPS.");
     }
 }
-
+//fungsi user marker GPS device
 function updateUserMarker(lat, lon) {
     const position = Cesium.Cartesian3.fromDegrees(lon, lat,0);
 
@@ -1171,3 +1276,171 @@ document.getElementById('focusGpsBtn').addEventListener('click', () => {
         startGpsTracking();
     }
 });
+
+//------------
+async function saveScoreToCloud(hole, par, strokes, term) {
+    if (!currentUser) return;
+
+    const { error } = await sb
+        .from('tracks')
+        .insert([{
+            user_id: currentUser.id,
+            round_id: localStorage.getItem('current_round_id'),
+            hole_number: parseInt(hole),
+            par: par,
+            strokes: strokes,
+            score_term: term,
+            // Masukkan koordinat GPS jika ada
+            points: { lat: userLat, lon: userLon } 
+        }]);
+
+    if (error) console.error("Gagal Sync:", error.message);
+    else console.log("Data tersimpan di Cloud!");
+}
+
+// supabase access
+async function checkAccess() {
+    console.log("Memulai pengecekan akses...");
+    const { data: { session } } = await sb.auth.getSession();
+    const overlay = document.getElementById('auth-overlay');
+
+    if (!session) {
+        console.log("Tidak ada sesi, tetap di layar login.");
+        overlay.style.display = 'flex';
+        return;
+    }
+
+    console.log("Sesi ditemukan untuk:", session.user.email);
+
+    // Ambil data profil
+    let { data: profile, error } = await sb
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+    if (error) {
+        console.error("Error mengambil profil:", error.message);
+        return;
+    }
+
+    // Jika profil belum ada di tabel, buat sekarang
+    // Di dalam fungsi checkAccess, bagian profil kosong:
+    if (!profile) {
+        console.log("Profil kosong, mencoba membuat baru...");
+        const metaName = session.user.user_metadata?.full_name || "Golfer";
+        
+        // Pastikan kolom yang diisi sesuai dengan yang ada di tabel 'profiles'
+        const { data: newProf, error: insErr } = await sb
+            .from('profiles')
+            .insert([{ 
+                id: session.user.id, 
+                full_name: metaName, 
+                is_paid: false 
+                // Jangan masukkan join_date/created_at di sini karena biasanya otomatis dari database
+            }])
+            .select()
+            .maybeSingle();
+
+        if (insErr) {
+            console.error("Gagal buat profil:", insErr.message);
+            // Jika gagal karena RLS, kita beri peringatan di console
+            return;
+        }
+        profile = newProf;
+    }
+
+    // PASANG DATA KE GLOBAL VARIABLE
+    currentUser = profile;
+    console.log("Profil aktif:", currentUser);
+
+    // ISI NAMA KE UI
+    const nameEl = document.getElementById('display-user-name');
+    if (nameEl) nameEl.textContent = currentUser.full_name;
+
+    // LOGIKA SEMBUNYIKAN LOGIN (PENTING!)
+    const joinDate = new Date(currentUser.created_at || currentUser.join_date || new Date());
+    const today = new Date();
+    const diffDays = Math.ceil((today - joinDate) / (1000 * 60 * 60 * 24));
+
+    if (!currentUser.is_paid && diffDays > 7) {
+        console.log("Masa trial habis.");
+        overlay.style.display = 'flex';
+        // (Tambahkan logika ubah teks tombol ke WhatsApp di sini jika mau)
+    } else {
+        console.log("Akses diberikan, menyembunyikan overlay...");
+        overlay.style.display = 'none'; // KUNCI UTAMA
+        loadTracksFromCloud();
+    }
+    // badge user
+    const now = new Date();
+    const validUntil = new Date(currentUser.valid_until);
+
+    // Hitung sisa hari untuk ditampilkan di UI (Opsional)
+    const timeDiff = validUntil - now;
+    const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+    const badge = document.getElementById('user-status-badge');
+
+    if (now > validUntil) {
+        // --- JIKA SUDAH EXPIRED ---
+        overlay.style.display = 'flex';
+        document.getElementById('auth-title').textContent = "Akses Terkunci";
+        document.getElementById('auth-subtitle').innerHTML = 
+            `Masa berlaku akun Anda telah habis.<br>Silakan lakukan pembayaran bulanan untuk melanjutkan.`;
+        
+        // Sembunyikan input, tampilkan tombol WA
+        document.getElementById('auth-email').style.display = 'none';
+        document.getElementById('auth-pass').style.display = 'none';
+        
+        const btn = document.getElementById('auth-primary-btn');
+        btn.textContent = "Aktifkan 30 Hari (WhatsApp)";
+        btn.onclick = () => window.open(`https://wa.me/628119910599?text=Halo Admin, saya ingin perpanjang langganan 1 Bulan. Email: ${currentUser.email}`);
+        
+    } else {
+        // --- JIKA MASIH AKTIF ---
+        overlay.style.display = 'none';
+        
+        // Update Status Badge
+        if (daysLeft <= 3) {
+            badge.textContent = `Sisa ${daysLeft} Hari`;
+            badge.style.backgroundColor = "orange";
+        } else {
+            badge.textContent = currentUser.is_paid ? "PRO" : "TRIAL";
+            badge.style.backgroundColor = currentUser.is_paid ? "#00ff88" : "#555";
+        }
+    }
+}
+checkAccess();
+
+// akses any device
+async function loadTracksFromCloud() {
+    if (!currentUser) return;
+
+    const { data, error } = await sb
+        .from('tracks')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('round_id', localStorage.getItem('current_round_id'));
+
+    if (error) {
+        console.error("Gagal ambil data cloud:", error.message);
+    } else if (data) {
+        console.log("Data cloud sinkron:", data.length, "entry ditemukan.");
+        
+        // Simpan data cloud ke LocalStorage agar UI updateSummaryUI() bisa membacanya
+        // Kita petakan agar formatnya sama dengan yang diharapkan fungsi UI kita
+        const formattedData = data.map(d => ({
+            id: d.id,
+            roundId: d.round_id,
+            hole: d.hole_number,
+            par: d.par,
+            strokes: d.strokes,
+            scoreTerm: d.score_term,
+            points: d.points
+        }));
+
+        localStorage.setItem('golf_tracks', JSON.stringify(formattedData));
+        updateSummaryUI(); // Update tabel scorecard kamu
+    }
+}

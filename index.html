@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <title>TerraGOLF | 3D Golf Tracker</title>
+    </head>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TERRA GOLF</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -15,7 +18,7 @@
 
 <div id="auth-overlay" class="auth-box">
     <div class="auth-container">
-        <h2 id="auth-title">Selamat Datang di TERRAGOLF<br> DAGO HERITAGE 1917</h2>
+        <h2 id="auth-title">Selamat Datang di TerraGOLF<br> DAGO HERITAGE 1917</h2>
         <p id="auth-subtitle">Silakan masuk untuk mulai mencatat skor.</p>
         
         <input type="email" id="auth-email" placeholder="Email Anda" class="auth-input">
@@ -38,7 +41,6 @@
 </div>
 
     <div class="ui-overlay">
-        
         <div id="hole-selector-container">
             <select id="holeSelect" class="menu-button-ops">
             <option value="">-- Pilih Hole --</option>
@@ -78,8 +80,9 @@
         <h3>Rangkuman Scorecard</h3>
         <div id="user-info-panel" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 8px;">
             <div>
-                <small style="color: #aaa; font-size: 0.6rem; display: block;">GOLFER</small>
+                <small style="color: #aaa; font-size: 0.5rem; display: block;">GOLFER</small>
                 <strong id="display-user-name" style="color: #00ff88; font-size: 0.9rem;">Nama User</strong>
+                <span id="user-status-badge" style="font-size: 0.5rem; padding: 2px 5px; border-radius: 10px; margin-left: 5px;"></span>
             </div>
                 <button id="logoutBtn" style="background: none; border: 1px solid #ff4444; color: #ff4444; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; cursor: pointer;">
                     Logout
