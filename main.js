@@ -1043,15 +1043,27 @@ function generateTableDetail() {
 
 // 2. Event Listener Tombol Lihat Detail
 document.getElementById('viewDetailBtn').addEventListener('click', () => {
-    const content = document.getElementById('pdf-content');
-    if (content.style.display === "none") {
-        generateTableDetail();
-        content.style.display = "block";
-        document.getElementById('viewDetailBtn').textContent = "Tutup Detail";
-    } else {
-        content.style.display = "none";
-        document.getElementById('viewDetailBtn').textContent = "Lihat Detail Scorecard";
-    }
+    const allTracks = JSON.parse(localStorage.getItem('golf_tracks') || '[]');
+    if (allTracks.length === 0) return alert("Belum ada data skor.");
+
+    const headerRow = document.getElementById('table-header-row');
+    const strokesRow = document.getElementById('table-strokes-row');
+    const parRow = document.getElementById('table-par-row');
+
+    // Reset isi tabel
+    headerRow.innerHTML = '<th>Hole</th>';
+    strokesRow.innerHTML = '<td><strong>Strokes</strong></td>';
+    parRow.innerHTML = '<td><strong>PAR</strong></td>';
+
+    // Isi data menyamping
+    allTracks.forEach(t => {
+        headerRow.innerHTML += `<th>${t.hole}</th>`;
+        strokesRow.innerHTML += `<td>${t.strokes}</td>`;
+        parRow.innerHTML += `<td>${t.par}</td>`;
+    });
+
+    // Tampilkan panel
+    document.getElementById('detail-scorecard-container').style.display = 'block';
 });
 
 // 3. Event Listener Tombol Export PDF

@@ -79,13 +79,22 @@
         <button id="saveTrackBtn" class="menu-button" style="background-color: #27ae60;">Simpan Track</button>
         <button id="historyBtn" class="menu-button" style="background-color: #2980b9;">Riwayat Track</button>
         <button id="deleteHistoryBtn" class="menu-button" style="background-color: #4a4f52;">Hapus Riwayat Track</button>
-        <button id="toggleScorecardBtn" class="menu-button" style="background-color: #102119;">📊 Scorecard ON/OFF
-        </button>
-        <div id="score-panel" style="background: rgba(3, 26, 21, 0.7); padding: 10px; font-size: 18px; border-radius: 5px; color: white; margin-top: 1px;margin-bottom: 1px;">
-        <strong>Skor Hole Ini: </strong> <span id="current-score-text">-</span>
         
+        
+        <div class="score-badge-container">
+            <strong>Skor Hole Ini:</strong><br> 
+            <span id="current-score-text">-</span>
+        </div>
+        
+        <div class="button-group">
+            <button id="toggleScorecardBtn" class="score-badge-container">📊 Scorecard ON/OFF
+            
+        </div>
+
+      
+        </button>
         <div id="score-summary-container" class="summary-card">
-        <button class="close-btn" onclick="toggleElement('score-summary-container')">✕</button>
+        
         <strong>Rangkuman Scorecard</strong><br>
         
         <div id="user-info-panel" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 8px;">
@@ -116,41 +125,34 @@
         </div>
     <div id="over-under-status" class="status-badge">Even</div>
         
-<div id="report-section" style="margin-top: 20px;">
-    <div class="button-group">
-        <button id="viewDetailBtn" class="btn-golf">Scorecard</button>
-        <button id="exportPdfBtn" class="btn-golf" style="background: #27ae60;">PDF</button>
-    </div>
-</button>
-    <div id="table-scroll-container" class="scorecard-scroll-box">
-        <div id="pdf-content" style="background: white; color: black; padding: 15px; display: none;">
-            <h2 style="text-align: center; font-size: 1.2rem; margin-bottom: 5px;">OFFICIAL SCORECARD</h2>
-            <p id="pdf-date" style="text-align: center; font-size: 0.8rem; margin-bottom: 10px;"></p>
-            
-            <table style="width: 100%; border-collapse: collapse; min-width: 400px;"> <thead>
-                    <tr style="background: #f2f2f2; font-size: 0.8rem;">
-                        <th style="border: 1px solid #ddd; padding: 6px;">Hole</th>
-                        <th style="border: 1px solid #ddd; padding: 6px;">Par</th>
-                        <th style="border: 1px solid #ddd; padding: 6px;">Strokes</th>
-                        <th style="border: 1px solid #ddd; padding: 6px;">Score</th>
-                    </tr>
-                </thead>
-                <tbody id="table-body-detail" style="font-size: 0.8rem; text-align: center;">
-                    </tbody>
-                <footer id="table-footer-detail">
-                     <tr style="font-weight: bold; background: #eee; font-size: 0.8rem;">
-                        <td style="border: 1px solid #ddd; padding: 6px;">TOTAL</td>
-                        <td id="total-par-pdf" style="border: 1px solid #ddd; padding: 6px;">0</td>
-                        <td id="total-strokes-pdf" style="border: 1px solid #ddd; padding: 6px;">0</td>
-                        <td id="total-diff-pdf" style="border: 1px solid #ddd; padding: 6px;">-</td>
-                    </tr>
-                </footer>
-            </table>
+    <div id="report-section" style="margin-top: 20px;">
+        <div class="button-group">
+            <button id="viewDetailBtn" class="btn-golf">Scorecard</button>
+            <button id="exportPdfBtn" class="btn-golf" style="background: #27ae60;">PDF</button>
         </div>
+
     </div>
 </div>
+
+<div id="detail-scorecard-container" class="horizontal-panel">
+    <button class="close-btn" onclick="toggleElement('detail-scorecard-container')">✕</button>
+    <h4 style="color: #00ff88; margin: 0 0 10px 0; font-size: 14px;">TerraGOLF - Detail Scorecard</h4>
+    <div class="table-responsive">
+        <table id="detail-scorecard-table">
+            <thead>
+                <tr id="table-header-row">
+                    </tr>
+            </thead>
+            <tbody>
+                <tr id="table-strokes-row">
+                    </tr>
+                <tr id="table-par-row">
+                    </tr>
+            </tbody>
+        </table>
     </div>
-    </div>    
+</div>
+
 </div>
     <button id="focusGpsBtn" style="position:fixed; bottom:20px; right:20px; width:50px; height:50px; border-radius:50%; background: white; border: 2px solid #00ff88; cursor: pointer; z-index: 1000;">
     📍

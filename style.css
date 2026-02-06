@@ -286,3 +286,72 @@ body, html, #cesiumContainer {
     font-weight: bold;
     color: white;
 }
+
+.score-badge-container {
+    background: rgba(15, 48, 33, 0.8); /* Hijau transparan tipis */
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin: 5px 0;
+    display: inline-block;               /* Ukuran kotak mengikuti panjang teks */
+    width: 100%;                         /* Atau biarkan 100% jika di dalam panel */
+    box-sizing: border-box;
+    color: #ffffff;
+}
+
+#current-score-text {
+    color: #fcfdfc;                      /* Warna teks skor jadi hijau terang */
+    font-weight: 800;
+    font-size: 1.1em;
+}
+
+.scorecard-scroll-box {
+    width: 100%;
+    max-height: 300px; /* Batasi tinggi agar tidak menutupi seluruh layar HP */
+    overflow-x: auto;  /* Aktifkan scroll horizontal jika tabel terlalu lebar */
+    overflow-y: auto;  /* Aktifkan scroll vertikal jika data hole banyak */
+    margin-top: 10px;
+    border-radius: 8px;
+    -webkit-overflow-scrolling: touch; /* Biar scroll di iPhone mulus */
+}
+
+
+
+.horizontal-panel {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%); /* Mengetengahkan panel */
+    width: 90%;
+    max-width: 800px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #00ff88;
+    border-radius: 12px;
+    padding: 15px;
+    z-index: 1005;
+    display: none; /* Sembunyikan awal */
+}
+
+.table-responsive {
+    overflow-x: auto; /* Kunci agar bisa di-scroll ke samping */
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+}
+
+#detail-scorecard-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: white;
+    text-align: center;
+}
+
+#detail-scorecard-table th, #detail-scorecard-table td {
+    border: 1px solid #444;
+    padding: 8px 12px;
+    min-width: 60px;
+}
+
+#detail-scorecard-table th {
+    background: rgba(0, 255, 136, 0.2);
+    color: #00ff88;
+    font-size: 12px;
+}
