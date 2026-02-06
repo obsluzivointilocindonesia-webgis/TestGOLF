@@ -14,9 +14,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
-<button id="toggleScorecardBtn" style="position:fixed; top:20px; left:190px; z-index:999; padding:10px; border-radius:8px; background:#00ff88; border:none; font-weight:bold;">
-            📊 Scorecard
-        </button>
+
 <body>
 
 <div id="auth-overlay" class="auth-box">
@@ -72,21 +70,23 @@
         </div>
         <div id="toolbar-info">
             <strong>Instruksi:</strong><br>
-            Klik titik Tee Shot di peta <br>
-        </div> 
+            Klik Titik di Peta untuk memulai!
+        </div>
+
         <button id="clearBtn" class="btn btn-navy">Hapus Semua Pengukuran</button>
         <button id="contourBtn" class="btn btn-dark">Tampilkan Kontur: OFF</button>
         <button id="undoBtn" class="menu-button" style="background-color: #9e4949;">Hapus Titik Terakhir</button>
         <button id="saveTrackBtn" class="menu-button" style="background-color: #27ae60;">Simpan Track</button>
         <button id="historyBtn" class="menu-button" style="background-color: #2980b9;">Riwayat Track</button>
         <button id="deleteHistoryBtn" class="menu-button" style="background-color: #4a4f52;">Hapus Riwayat Track</button>
-        <div id="score-panel" style="background: rgba(0,0,0,0.7); padding: 10px; font-size: 18px; border-radius: 5px; color: white; margin-top: 1px;margin-bottom: 1px;">
+        <button id="toggleScorecardBtn" class="menu-button" style="background-color: #102119;">📊 Scorecard ON/OFF
+        </button>
+        <div id="score-panel" style="background: rgba(3, 26, 21, 0.7); padding: 10px; font-size: 18px; border-radius: 5px; color: white; margin-top: 1px;margin-bottom: 1px;">
         <strong>Skor Hole Ini: </strong> <span id="current-score-text">-</span>
         
         <div id="score-summary-container" class="summary-card">
-        
         <button class="close-btn" onclick="toggleElement('score-summary-container')">✕</button>
-        <h3>Rangkuman Scorecard</h3>
+        <strong>Rangkuman Scorecard</strong><br>
         
         <div id="user-info-panel" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 8px;">
             <div>
@@ -117,8 +117,10 @@
     <div id="over-under-status" class="status-badge">Even</div>
         
 <div id="report-section" style="margin-top: 20px;">
-    <button id="viewDetailBtn" class="btn-golf">Lihat Detail Scorecard</button>
-    <button id="exportPdfBtn" class="btn-golf" style="background: #27ae60;">Simpan ke PDF</button>
+    <div class="button-group">
+        <button id="viewDetailBtn" class="btn-golf">Scorecard</button>
+        <button id="exportPdfBtn" class="btn-golf" style="background: #27ae60;">PDF</button>
+    </div>
 </button>
     <div id="table-scroll-container" class="scorecard-scroll-box">
         <div id="pdf-content" style="background: white; color: black; padding: 15px; display: none;">

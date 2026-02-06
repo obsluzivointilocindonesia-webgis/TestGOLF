@@ -106,7 +106,7 @@ body, html, #cesiumContainer {
         height: 50%; /* Lebih pendek di HP */
     }
     #score-panel {
-        font-size: 0.9rem;
+        font-size: 0.75rem;
     }
 
     .summary-card {
@@ -152,6 +152,10 @@ body, html, #cesiumContainer {
     .btn-golf {
         font-size: 0.7rem;
         padding: 6px;
+    }
+    .close-btn {
+        font-size: 0.7rem;
+        padding: 3px;
     }
 }
 
@@ -232,7 +236,7 @@ body, html, #cesiumContainer {
     font-size: 0.9rem;
 }
 
-
+/*..................*/
 .btn-golf {
     width: 100%;
     padding: 10px;
@@ -244,26 +248,6 @@ body, html, #cesiumContainer {
     font-weight: bold;
     cursor: pointer;
     font-size: 0.9rem;
-}
-
-.scorecard-scroll-box {
-    width: 100%;
-    max-height: 300px; /* Batasi tinggi agar tidak menutupi seluruh layar HP */
-    overflow-x: auto;  /* Aktifkan scroll horizontal jika tabel terlalu lebar */
-    overflow-y: auto;  /* Aktifkan scroll vertikal jika data hole banyak */
-    margin-top: 10px;
-    border-radius: 8px;
-    -webkit-overflow-scrolling: touch; /* Biar scroll di iPhone mulus */
-}
-
-/* Mempercantik scrollbar agar tipis */
-.scorecard-scroll-box::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-}
-.scorecard-scroll-box::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 10px;
 }
 
 /* Tombol Close Umum */
@@ -282,4 +266,23 @@ body, html, #cesiumContainer {
     font-size: 14px;
     line-height: 25px;
     text-align: center;
+}
+
+.button-group {
+    display: flex;         /* Membuat elemen di dalamnya berjajar */
+    gap: 8px;              /* Memberi jarak antar tombol */
+    width: 100%;           /* Mengikuti lebar panel */
+    margin-top: 10px;
+}
+
+.button-group .btn-golf {
+    flex: 1;               /* Membuat kedua tombol memiliki lebar yang sama (50:50) */
+    padding: 10px 5px;     /* Sedikit padding agar lebih ramping */
+    font-size: 12px;       /* Ukuran teks disesuaikan untuk layar HP */
+    white-space: nowrap;   /* Mencegah teks turun ke bawah jika terlalu panjang */
+    border-radius: 8px;
+    cursor: pointer;
+    border: none;
+    font-weight: bold;
+    color: white;
 }
