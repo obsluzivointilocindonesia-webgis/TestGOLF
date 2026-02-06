@@ -232,16 +232,7 @@ body, html, #cesiumContainer {
     font-size: 0.9rem;
 }
 
-.summary-card.minimized .summary-grid, 
-.summary-card.minimized #newGameBtn,
-.summary-card.minimized hr {
-    display: none; /* Sembunyikan isi saat dikecilkan */
-}
 
-.summary-card.minimized {
-    width: auto;
-    cursor: pointer;
-}
 .btn-golf {
     width: 100%;
     padding: 10px;
@@ -280,7 +271,7 @@ body, html, #cesiumContainer {
     position: absolute;
     top: 5px;
     right: 8px;
-    background: #181818;
+    background: #9e0b0b;
     color: white;
     border: none;
     border-radius: 50%;

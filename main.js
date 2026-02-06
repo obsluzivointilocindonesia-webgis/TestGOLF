@@ -1420,3 +1420,9 @@ function toggleElement(elementId) {
         el.style.display = "none";
     }
 }
+
+//
+// Event listener untuk tombol scorecard
+document.getElementById('toggleScorecardBtn').addEventListener('click', () => {
+    toggleElement('score-summary-container');
+});
