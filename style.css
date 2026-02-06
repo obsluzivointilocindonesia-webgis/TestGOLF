@@ -355,3 +355,26 @@ body, html, #cesiumContainer {
     color: #00ff88;
     font-size: 12px;
 }
+
+.back-btn {
+    position: fixed;
+    top: calc(15px + env(safe-area-inset-top)); /* Menghindari Notch/Dynamic Island */
+    left: 15px;
+    z-index: 1010;
+    padding: 8px 15px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 20px; /* Bentuk kapsul yang modern */
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    backdrop-filter: blur(5px); /* Efek kaca blur */
+    transition: 0.3s;
+}
+
+.back-btn:hover {
+    background: #ff4d4d; /* Berubah merah saat hover/klik sebagai tanda "Keluar" */
+    border-color: #ff4d4d;
+}
+

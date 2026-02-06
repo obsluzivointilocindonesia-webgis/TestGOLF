@@ -1372,7 +1372,7 @@ async function checkAccess() {
         
         const btn = document.getElementById('auth-primary-btn');
         btn.textContent = "Aktifkan 30 Hari (WhatsApp)";
-        btn.onclick = () => window.open(`https://wa.me/628119910599?text=Halo Admin, saya ingin perpanjang langganan 1 Bulan. Email: ${currentUser.email}`);
+        btn.onclick = () => window.open(`https://wa.me/628119901599?text=Halo Admin, saya ingin perpanjang langganan 1 Bulan. Email: ${currentUser.email}`);
         
     } else {
         // --- JIKA MASIH AKTIF ---
@@ -1436,4 +1436,10 @@ function toggleElement(elementId) {
 // Event listener untuk tombol scorecard
 document.getElementById('toggleScorecardBtn').addEventListener('click', () => {
     toggleElement('score-summary-container');
+});
+
+//back web
+document.getElementById('backToWebBtn').addEventListener('click', () => {
+    // Arahkan ke website utama Squarespace kamu
+    window.location.href = 'https://www.obsluzivo.com/terra-golf';
 });
