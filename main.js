@@ -1137,24 +1137,35 @@ function checkTrialAccess() {
     const activeUser = JSON.parse(localStorage.getItem('active_user'));
     const overlay = document.getElementById('auth-overlay');
 
-    if (!activeUser) {
+    if (!activeUser || !activeUser.joinDate) {
         overlay.style.display = 'flex';
         return;
     }
 
-    // --- LOGIKA MENAMPILKAN NAMA ---
+    // Tampilkan Nama
     const nameEl = document.getElementById('display-user-name');
-    if (nameEl) nameEl.textContent = activeUser.name;
+    if (nameEl) nameEl.textContent = activeUser.name || "User";
 
-    // Logika cek tanggal trial
+    // --- LOGIKA TANGGAL YANG LEBIH AKURAT ---
     const joinDate = new Date(activeUser.joinDate);
     const today = new Date();
-    const diffTime = Math.abs(today - joinDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Hitung selisih milidetik lalu ubah ke hari
+    const diffInMs = today.getTime() - joinDate.getTime();
+    const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
 
-    if (!activeUser.isPaid && diffDays > 7) {
-        // ... (logika lockdown aplikasi jika > 7 hari) ...
+    console.log(`User bergabung ${diffInDays.toFixed(1)} hari yang lalu.`);
+
+    // Cek Akses
+    if (!activeUser.isPaid && diffInDays > 7) {
+        alert("Masa Trial 7 Hari telah berakhir. Silakan lakukan aktivasi.");
         overlay.style.display = 'flex';
+        // Tambahkan tombol logout di overlay agar user tidak stuck
+        document.getElementById('auth-form-container').innerHTML = `
+            <h3>Masa Trial Habis</h3>
+            <p>Silakan hubungi admin untuk aktivasi permanen.</p>
+            <button onclick="handleLogout()" class="btn-golf">Logout</button>
+        `;
     } else {
         overlay.style.display = 'none';
     }
