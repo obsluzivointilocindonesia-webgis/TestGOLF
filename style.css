@@ -81,7 +81,7 @@ body, html, #cesiumContainer {
 
     .btn {
         padding: 10px 10px; /* Area klik lebih luas */
-        font-size: 10px;    /* Tulisan lebih besar */
+        font-size: 14px;    /* Tulisan lebih besar */
         margin: 1px 2px;   /* Jarak antar tombol agar tidak salah tekan */
         width: 50%;         /* Opsional: Tombol melebar hampir memenuhi layar */
         display: block;     /* Membuat tombol berderet ke bawah */
@@ -89,7 +89,7 @@ body, html, #cesiumContainer {
 
     .menu-button {
         padding: 10px 10px; /* Area klik lebih luas */
-        font-size: 10px;    /* Tulisan lebih besar */
+        font-size: 14px;    /* Tulisan lebih besar */
         margin: 1px 2px;   /* Jarak antar tombol agar tidak salah tekan */
         width: 50%;         /* Opsional: Tombol melebar hampir memenuhi layar */
         display: block;     /* Membuat tombol berderet ke bawah */
