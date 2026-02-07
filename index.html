@@ -17,14 +17,14 @@
 
 <body>
 <button id="backToWebBtn" class="back-btn">
-    ← Kembali ke Web
+    ← Back To Web
 </button>
 
 
 <div id="auth-overlay" class="auth-box">
     <div class="auth-container">
-        <h2 id="auth-title">Selamat Datang di TerraGOLF<br> DAGO HERITAGE 1917</h2>
-        <p id="auth-subtitle">Silakan masuk untuk mulai mencatat skor.</p>
+        <h2 id="auth-title">Welcome to TerraGOLF<br> DAGO HERITAGE 1917</h2>
+        <p id="auth-subtitle">Please login to start.</p>
         
         <input type="email" id="auth-email" placeholder="Email Anda" class="auth-input">
         <input type="password" id="auth-pass" placeholder="Password" class="auth-input">
@@ -33,8 +33,8 @@
             <input type="text" id="auth-name" placeholder="Nama Lengkap" class="auth-input">
         </div>
 
-        <button id="auth-primary-btn" class="auth-btn">Masuk</button>
-        <p class="auth-switch">Belum punya akun? <span id="toggle-auth">Daftar sekarang</span></p>
+        <button id="auth-primary-btn" class="auth-btn">Sign In</button>
+        <p class="auth-switch">Don't have an account? <span id="toggle-auth">Sign Up</span></p>
     </div>
 </div>
 
@@ -51,7 +51,7 @@
 </button>
         <div id="hole-selector-container"><br><br>
             <select id="holeSelect" class="menu-button-ops">
-            <option value="">-- Pilih Hole --</option>
+            <option value="">-- Hole # --</option>
             <option value="1">Hole 1</option>
             <option value="2">Hole 2</option>
             <option value="3">Hole 3</option>
@@ -73,40 +73,40 @@
             </select>
         </div>
         <div id="toolbar-info">
-            <strong>Instruksi:</strong><br>
-            Klik Titik di Peta untuk memulai!
+            <strong>Instruction:</strong><br>
+            Click on the map to start!
         </div>
 
-        <button id="clearBtn" class="btn btn-navy">Hapus Semua Pengukuran</button>
-        <button id="contourBtn" class="btn btn-dark">Tampilkan Kontur: OFF</button>
-        <button id="undoBtn" class="menu-button" style="background-color: #9e4949;">Hapus Titik Terakhir</button>
-        <button id="saveTrackBtn" class="menu-button" style="background-color: #27ae60;">Simpan Track</button>
-        <button id="historyBtn" class="menu-button" style="background-color: #2980b9;">Riwayat Track</button>
-        <button id="deleteHistoryBtn" class="menu-button" style="background-color: #4a4f52;">Hapus Riwayat Track</button>
+        <button id="clearBtn" class="btn btn-navy">Clear ALL</button>
+        <button id="contourBtn" class="btn btn-dark">Contour: OFF</button>
+        <button id="undoBtn" class="menu-button" style="background-color: #9e4949;">Del-Point</button>
+        <button id="saveTrackBtn" class="menu-button" style="background-color: #27ae60;">Save</button>
+        <button id="historyBtn" class="menu-button" style="background-color: #2980b9;">History</button>
+        <button id="deleteHistoryBtn" class="menu-button" style="background-color: #4a4f52;">Del-Track</button>
         
         
         <div class="score-badge-container">
-            <strong>Skor Hole Ini:</strong><br> 
+            <strong>SCORE :</strong><br> 
             <span id="current-score-text">-</span>
-            <button id="toggleScorecardBtn" class="score-badge-container">📊 Scorecard ON/OFF
+            <button id="toggleScorecardBtn" class="score-badge-container">📊 SC ON/OFF
         </div>
         
         </button>
         <div id="score-summary-container" class="summary-card">
         
-        <strong>Rangkuman Scorecard</strong><br>
+        <strong>Summary SC</strong><br>
         
         <div id="user-info-panel" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 8px;">
             <div>
                 <small style="color: #aaa; font-size: 0.5rem; display: block;">GOLFER</small>
-                <strong id="display-user-name" style="color: #00ff88; font-size: 0.9rem;">Nama User</strong>
+                <strong id="display-user-name" style="color: #00ff88; font-size: 0.9rem;">User</strong>
                 <span id="user-status-badge" style="font-size: 0.5rem; padding: 2px 5px; border-radius: 10px; margin-left: 5px;"></span>
             </div>
                 <button id="logoutBtn" style="background: none; border: 1px solid #ff4444; color: #ff4444; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; cursor: pointer;">
                     Logout
                 </button>
         </div>
-            <button id="newGameBtn" class="menu-button" style="background-color: #192cbb;">Mulai Ronde Baru</button>
+            <button id="newGameBtn" class="menu-button" style="background-color: #192cbb;">New Ronde</button>
         <hr>
         <div class="summary-grid">
             <div class="summary-item">
@@ -126,7 +126,7 @@
         
     <div id="report-section" style="margin-top: 20px;">
         <div class="button-group">
-            <button id="viewDetailBtn" class="btn-golf">Scorecard</button>
+            <button id="viewDetailBtn" class="btn-golf">SC Card</button>
             <button id="exportPdfBtn" class="btn-golf" style="background: #27ae60;">PDF</button>
         </div>
 
