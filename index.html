@@ -16,6 +16,32 @@
 </head>
 
 <body>
+<div id="pdf-report-hidden" style="display: none; background: white; color: black; padding: 20px; font-family: Arial, sans-serif;">
+    <h2 style="text-align: center; color: #1a472a;">DAGO HERITAGE 1917 GOLF COURSE</h2>
+    <p id="pdf-date" style="text-align: right; font-size: 12px;"></p>
+    <p>Player: <strong id="pdf-player-name">User</strong></p>
+    
+    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+        <thead>
+            <tr style="background: #1a472a; color: white;">
+                <th style="border: 1px solid #ddd; padding: 8px;">Hole</th>
+                <th style="border: 1px solid #ddd; padding: 8px;">PAR</th>
+                <th style="border: 1px solid #ddd; padding: 8px;">Strokes</th>
+                <th style="border: 1px solid #ddd; padding: 8px;">Score</th>
+            </tr>
+        </thead>
+        <tbody id="table-body-detail-pdf">
+            </tbody>
+        <tfoot>
+            <tr style="font-weight: bold; background: #eee;">
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">TOTAL</td>
+                <td id="total-par-pdf" style="border: 1px solid #ddd; padding: 8px; text-align: center;">0</td>
+                <td id="total-strokes-pdf" style="border: 1px solid #ddd; padding: 8px; text-align: center;">0</td>
+                <td id="total-diff-pdf" style="border: 1px solid #ddd; padding: 8px; text-align: center;">0</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
 <button id="backToWebBtn" class="back-btn">
     ← Back To Web
 </button>
@@ -60,24 +86,24 @@
     <div id="hole-selector-container"><br><br><br><br><br>
             <select id="holeSelect" class="menu-button-ops">
             <option value="">Hole #</option>
-            <option value="1">Hole 1: 484m</option>
-            <option value="2">Hole 2: 154m</option>
-            <option value="3">Hole 3: 182m</option>
-            <option value="4">Hole 4: 320m</option>
-            <option value="5">Hole 5: 274m</option>
-            <option value="6">Hole 6: 289m</option>
-            <option value="7">Hole 7: 239m</option>
-            <option value="8">Hole 8: 339m</option>
-            <option value="9">Hole 9: 239m</option>
-            <option value="10">Hole 10: 339m</option>
-            <option value="11">Hole 11: 156m</option>
-            <option value="12">Hole 12: 339m</option>
-            <option value="13">Hole 13: 294m</option>
-            <option value="14">Hole 14: 384m</option>
-            <option value="15">Hole 15: 77m</option>
-            <option value="16">Hole 16: 247m</option>
-            <option value="17">Hole 17: 302m</option>
-            <option value="18">Hole 18: 491m</option>
+            <option value="1">Hole 1: 484</option>
+            <option value="2">Hole 2: 154</option>
+            <option value="3">Hole 3: 182</option>
+            <option value="4">Hole 4: 320</option>
+            <option value="5">Hole 5: 274</option>
+            <option value="6">Hole 6: 289</option>
+            <option value="7">Hole 7: 239</option>
+            <option value="8">Hole 8: 295</option>
+            <option value="9">Hole 9: 239</option>
+            <option value="10">Hole 10: 339</option>
+            <option value="11">Hole 11: 156</option>
+            <option value="12">Hole 12: 339</option>
+            <option value="13">Hole 13: 294</option>
+            <option value="14">Hole 14: 384</option>
+            <option value="15">Hole 15: 77</option>
+            <option value="16">Hole 16: 247</option>
+            <option value="17">Hole 17: 302</option>
+            <option value="18">Hole 18: 491</option>
             </select>
     </div>
     <div id="toolbar-info" class="toolbar-info">
@@ -133,23 +159,28 @@
 
     <div id="detail-scorecard-container" class="horizontal-panel">
         <button class="close-btn" onclick="toggleElement('detail-scorecard-container')">✕</button>
-        <h4 style="color: #00ff88; margin: 0 0 10px 0; font-size: 14px;">TerraGOLF - Detail Scorecard</h4>
-        <div class="table-responsive">
+        
+        <h4 style="color: #00ff88; margin: 0; font-size: 14px;">TerraGOLF - DAGO HERITAGE 1917</h4>
+        <small id="pdf-date" style="color: #aaa;"></small>
+        
+        <div class="table-responsive" id="pdf-area">
             <table id="detail-scorecard-table">
                 <thead>
-                    <tr id="table-header-row">
-                        </tr>
+                    <tr id="table-header-row"></tr>
                 </thead>
                 <tbody>
-                    <tr id="table-strokes-row">
-                        </tr>
-                    <tr id="table-par-row">
-                        </tr>
+                    <tr id="table-strokes-row"></tr>
+                    <tr id="table-par-row"></tr>
                 </tbody>
             </table>
+            
+            <div id="pdf-footer" style="margin-top: 10px; color: white; font-size: 12px; display: none;">
+                <span>Total Strokes: <strong id="total-strokes-pdf"></strong></span> | 
+                <span>Total PAR: <strong id="total-par-pdf"></strong></span> | 
+                <span>Diff: <strong id="total-diff-pdf"></strong></span>
+            </div>
         </div>
     </div>
-</div>
     <button id="focusGpsBtn" style="position:fixed; bottom:20px; right:20px; width:50px; height:50px; border-radius:50%; background: white; border: 2px solid #00ff88; cursor: pointer; z-index: 1000;">
     📍
 

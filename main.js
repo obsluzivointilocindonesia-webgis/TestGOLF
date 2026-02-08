@@ -1012,21 +1012,95 @@ function getGolfTerm(strokes, par) {
 }
 
 // 1. Fungsi untuk mengisi data ke dalam tabel detail
-function generateTableDetail() {
+// Fungsi untuk mengisi data tabel horizontal
+function prepareScorecardData() {
     const allTracks = JSON.parse(localStorage.getItem('golf_tracks') || '[]');
-    const currentRoundId = localStorage.getItem('current_round_id');
-    const currentTracks = allTracks.filter(t => t.roundId == currentRoundId);
+    if (allTracks.length === 0) return false;
 
-    const tbody = document.getElementById('table-body-detail');
-    tbody.innerHTML = ""; // Bersihkan tabel
+    // Urutkan data
+    allTracks.sort((a, b) => parseInt(a.hole) - parseInt(b.hole));
+
+    const headerRow = document.getElementById('table-header-row');
+    const strokesRow = document.getElementById('table-strokes-row');
+    const parRow = document.getElementById('table-par-row');
+
+    // Reset isi
+    headerRow.innerHTML = '<th>Hole</th>';
+    strokesRow.innerHTML = '<td><strong>Strokes</strong></td>';
+    parRow.innerHTML = '<td><strong>PAR</strong></td>';
 
     let tStrokes = 0;
     let tPar = 0;
 
-    // Urutkan berdasarkan nomor Hole
-    currentTracks.sort((a, b) => parseInt(a.hole) - parseInt(b.hole));
+    allTracks.forEach(t => {
+        headerRow.innerHTML += `<th>${t.hole}</th>`;
+        strokesRow.innerHTML += `<td>${t.strokes}</td>`;
+        parRow.innerHTML += `<td>${t.par}</td>`;
+        tStrokes += parseInt(t.strokes);
+        tPar += parseInt(t.par);
+    });
 
-    currentTracks.forEach(track => {
+    // Update angka total untuk PDF
+    document.getElementById('total-strokes-pdf').textContent = tStrokes;
+    document.getElementById('total-par-pdf').textContent = tPar;
+    const diff = tStrokes - tPar;
+    document.getElementById('total-diff-pdf').textContent = (diff > 0 ? "+" : "") + diff;
+    document.getElementById('pdf-date').textContent = new Date().toLocaleDateString('id-ID');
+
+    return true;
+}
+
+// 1. Tombol Lihat Detail (Layar)
+document.getElementById('viewDetailBtn').addEventListener('click', () => {
+    if (prepareScorecardData()) {
+        document.getElementById('pdf-footer').style.display = 'none'; // Sembunyikan footer di layar
+        document.getElementById('detail-scorecard-container').style.display = 'block';
+    } else {
+        alert("Belum ada data skor.");
+    }
+});
+
+// 2. Tombol Export PDF
+document.getElementById('exportPdfBtn').addEventListener('click', function() {
+    const success = prepareHiddenPdfTable();
+    if (!success) return alert("Tidak ada data untuk PDF");
+
+    const element = document.getElementById('pdf-report-hidden');
+    
+    // Tampilkan sebentar agar bisa ditangkap library
+    element.style.display = "block"; 
+
+    const opt = {
+        margin:       0.5,
+        filename:     `TerraGOLF-DagoHeritage-${Date.now()}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, logging: false, useCORS: true },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+        element.style.display = "none"; // Sembunyikan lagi
+    });
+});
+
+// FUNGSI TABEL VERTIKAL SEMBUNYI
+function prepareHiddenPdfTable() {
+    const allTracks = JSON.parse(localStorage.getItem('golf_tracks') || '[]');
+    
+    // AMBIL NAMA LANGSUNG DARI DASHBOARD (ID: display-user-name)
+    const currentUserName = document.getElementById('display-user-name').textContent;
+    
+    const tbody = document.getElementById('table-body-detail-pdf');
+    if (!tbody) return false;
+
+    tbody.innerHTML = "";
+    let tStrokes = 0;
+    let tPar = 0;
+
+    // Urutkan data berdasarkan nomor Hole
+    allTracks.sort((a, b) => parseInt(a.hole) - parseInt(b.hole));
+
+    allTracks.forEach(track => {
         const row = `
             <tr>
                 <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${track.hole}</td>
@@ -1040,62 +1114,20 @@ function generateTableDetail() {
         tPar += track.par;
     });
 
-    // Update Footer Tabel
+    // Update data di template PDF
     document.getElementById('total-par-pdf').textContent = tPar;
     document.getElementById('total-strokes-pdf').textContent = tStrokes;
     document.getElementById('total-diff-pdf').textContent = (tStrokes - tPar > 0 ? "+" : "") + (tStrokes - tPar);
     document.getElementById('pdf-date').textContent = "Tanggal: " + new Date().toLocaleDateString('id-ID');
+    
+    // MASUKKAN NAMA KE PDF
+    document.getElementById('pdf-player-name').textContent = currentUserName;
+
+    return true;
 }
 
-// 2. Event Listener Tombol Lihat Detail
-document.getElementById('viewDetailBtn').addEventListener('click', () => {
-    const allTracks = JSON.parse(localStorage.getItem('golf_tracks') || '[]');
-    if (allTracks.length === 0) return alert("Belum ada data skor.");
-
-    const headerRow = document.getElementById('table-header-row');
-    const strokesRow = document.getElementById('table-strokes-row');
-    const parRow = document.getElementById('table-par-row');
-
-    // Reset isi tabel
-    headerRow.innerHTML = '<th>Hole</th>';
-    strokesRow.innerHTML = '<td><strong>Strokes</strong></td>';
-    parRow.innerHTML = '<td><strong>PAR</strong></td>';
-
-    // Isi data menyamping
-    allTracks.forEach(t => {
-        headerRow.innerHTML += `<th>${t.hole}</th>`;
-        strokesRow.innerHTML += `<td>${t.strokes}</td>`;
-        parRow.innerHTML += `<td>${t.par}</td>`;
-    });
-
-    // Tampilkan panel
-    document.getElementById('detail-scorecard-container').style.display = 'block';
-});
-
-// 3. Event Listener Tombol Export PDF
-document.getElementById('exportPdfBtn').addEventListener('click', () => {
-    const element = document.getElementById('pdf-content');
-    
-    // Simpan tampilan asli
-    const originalDisplay = element.style.display;
-    element.style.display = "block"; 
-
-    const opt = {
-        margin:       0.5,
-        filename:     `Golf-Scorecard-${Date.now()}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, logging: false, useCORS: true },
-        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-    };
-
-    html2pdf().set(opt).from(element).save().then(() => {
-        // Jangan kembalikan ke display none jika user sedang melihat detail
-        if (originalDisplay === "none") {
-            element.style.display = "none";
-        }
-    });
-});
-
+//-----------------------------------------
+// REGISTER
 let isRegisterMode = false;
 
 // 1. Fungsi Toggle Login/Daftar
