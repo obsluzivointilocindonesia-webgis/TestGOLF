@@ -6,7 +6,7 @@ const supabaseUrl = 'https://jltjrfhbreswadzlexzg.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsdGpyZmhicmVzd2FkemxleHpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjA4NjIsImV4cCI6MjA4NTY5Njg2Mn0.mS7QjBoWBS-xYZcAE--SaZHioJ_RqA57l_Bs5p6ppag';
 const sb = supabase.createClient(supabaseUrl, supabaseKey);
 
-Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzY2ZhMGQ3MS1mYzYwLTQ1NzktODY1Mi1lODRhZjRmMWE4Y2EiLCJpZCI6Mzg0MjAyLCJpYXQiOjE3Njk1Njg5ODJ9.5U2zZd_um-3-iYrpnfZg1Xt7eI7N_CPTCQHoa2xB0jQ"
+Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxYjJiNmQzZC1hNTc0LTRhM2MtYjI2Yy1jZmQ2ZTZmNzY0YTMiLCJpZCI6Mzg0MjAyLCJpYXQiOjE3NzAzOTYwNzF9.YfLtke7hqAh66vLe_iaVxqCt8iB9PFTUk5GXSgVpq6c"
 const viewer = new Cesium.Viewer('cesiumContainer', {
     terrain: Cesium.Terrain.fromWorldTerrain(),
 });
@@ -502,8 +502,16 @@ const holeData = {
 document.getElementById('holeSelect').addEventListener('change', async (e) => {
     const id = e.target.value;
     if (!id) return;
-
     const data = holeData[id];
+    if (id) {
+        document.getElementById('clearBtn').style.display = 'block'; 
+        document.getElementById('undoBtn').style.display = 'block';
+        document.getElementById('deleteHistoryBtn').style.display = 'block';
+        document.getElementById('contourBtn').style.display = 'block';
+        document.getElementById('historyBtn').style.display = 'block';
+        document.getElementById('saveTrackBtn').style.display = 'block';
+    }
+
 
     // 1. Zoom ke Hole
     viewer.camera.flyTo({
@@ -1474,7 +1482,7 @@ function toggleElement(id) {
 
 // Fungsi pembantu agar kode lebih bersih (Helper Function)
 function setNavButtonsDisplay(status) {
-    const buttons = ['undoBtn', 'saveTrackBtn', 'deleteHistoryBtn'];
+    const buttons = ['undoBtn', 'saveTrackBtn', 'deleteHistoryBtn','contourBtn','historyBtn','clearBtn'];
     buttons.forEach(btnId => {
         const btn = document.getElementById(btnId);
         if (btn) btn.style.display = status;
