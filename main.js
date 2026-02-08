@@ -510,6 +510,7 @@ document.getElementById('holeSelect').addEventListener('change', async (e) => {
         document.getElementById('contourBtn').style.display = 'block';
         document.getElementById('historyBtn').style.display = 'block';
         document.getElementById('saveTrackBtn').style.display = 'block';
+        document.getElementById('toolbar-info').style.display = 'none';
     }
 
 
@@ -755,6 +756,7 @@ document.getElementById('saveTrackBtn').addEventListener('click', async() => {
     document.getElementById('current-score-text').textContent = `${finalStrokes} Strokes (${scoreTerm})`;
     updateSummaryUI();
     alert(`Save to Cloud!`)
+    clearAll()
 });
 //new ronde
 // A. Fungsi untuk memulai ronde baru
