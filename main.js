@@ -666,8 +666,10 @@ document.getElementById('saveTrackBtn').addEventListener('click', async() => {
 
     const infoScore = document.getElementById('score-summary-container');
     if (infoScore) {
-        infoScore.style.display = 'block'; 
+        infoScore.style.display = 'none'; 
     }
+
+
 
     if (profileChart) profileChart.destroy();
     document.getElementById('chartContainer').style.display = 'none';

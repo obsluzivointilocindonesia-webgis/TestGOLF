@@ -195,6 +195,7 @@ body, html, #cesiumContainer {
 }
 
 .summary-card {
+    display: none;
     position: relative;
     background: rgba(25, 25, 25, 0.9);
     color: white;
