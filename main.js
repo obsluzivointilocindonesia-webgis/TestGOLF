@@ -6,7 +6,7 @@ const supabaseUrl = 'https://jltjrfhbreswadzlexzg.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsdGpyZmhicmVzd2FkemxleHpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjA4NjIsImV4cCI6MjA4NTY5Njg2Mn0.mS7QjBoWBS-xYZcAE--SaZHioJ_RqA57l_Bs5p6ppag';
 const sb = supabase.createClient(supabaseUrl, supabaseKey);
 
-Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxYjJiNmQzZC1hNTc0LTRhM2MtYjI2Yy1jZmQ2ZTZmNzY0YTMiLCJpZCI6Mzg0MjAyLCJpYXQiOjE3NzAzOTYwNzF9.YfLtke7hqAh66vLe_iaVxqCt8iB9PFTUk5GXSgVpq6c"
+Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzY2ZhMGQ3MS1mYzYwLTQ1NzktODY1Mi1lODRhZjRmMWE4Y2EiLCJpZCI6Mzg0MjAyLCJpYXQiOjE3Njk1Njg5ODJ9.5U2zZd_um-3-iYrpnfZg1Xt7eI7N_CPTCQHoa2xB0jQ"
 const viewer = new Cesium.Viewer('cesiumContainer', {
     terrain: Cesium.Terrain.fromWorldTerrain(),
 });
@@ -1449,3 +1449,34 @@ document.getElementById('backToWebBtn').addEventListener('click', () => {
     // Arahkan ke website utama Squarespace kamu
     window.location.href = 'https://www.obsluzivo.com/terra-golf';
 });
+
+//on off tombol2 agar bersih
+function toggleElement(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    if (el.style.display === 'none' || el.style.display === '') {
+        el.style.display = 'block';
+        
+        // JIKA sedang membuka Scorecard, sembunyikan tombol navigasi
+        if (id === 'score-summary-container') {
+            setNavButtonsDisplay('none');
+        }
+    } else {
+        el.style.display = 'none';
+        
+        // JIKA sedang menutup Scorecard, munculkan KEMBALI tombol navigasi
+        if (id === 'score-summary-container') {
+            setNavButtonsDisplay('block');
+        }
+    }
+}
+
+// Fungsi pembantu agar kode lebih bersih (Helper Function)
+function setNavButtonsDisplay(status) {
+    const buttons = ['undoBtn', 'saveTrackBtn', 'deleteHistoryBtn'];
+    buttons.forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        if (btn) btn.style.display = status;
+    });
+}
