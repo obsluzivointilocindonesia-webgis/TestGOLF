@@ -70,6 +70,13 @@ body, html, #cesiumContainer {
 .btn-navy { background: #000080; }
 .btn-dark { background: #2c3e50; }
 
+.nav-btn-secondary {
+    position: fixed;
+    top: calc(140px + env(safe-area-inset-top)); /* Diturunkan lagi */
+    left: 15px;
+    z-index: 1009;
+}
+
 @media screen and (max-width: 768px) {
     .menu-button-ops{
         padding: 10px 20px; 
@@ -110,15 +117,10 @@ body, html, #cesiumContainer {
     }
 
     .summary-card {
-        width: 140px; /* Diperkecil drastis */
-        padding: 8px;
+        width: 100px; /* Diperkecil drastis */
+        padding: 5px;
         left: 5px;
         top: 5px;
-    }
-
-    .summary-card h3 {
-        font-size: 0.75rem; /* Judul lebih kecil */
-        margin-bottom: 5px;
     }
 
     .summary-grid {
@@ -147,7 +149,7 @@ body, html, #cesiumContainer {
     #toolbar-info {
         font-size: 0.8rem;
         padding: 6px;
-        max-width: 90vw;
+        max-width: 60vw;
     }
     .btn-golf {
         font-size: 0.7rem;
@@ -155,13 +157,13 @@ body, html, #cesiumContainer {
     }
     .close-btn {
         font-size: 0.7rem;
-        padding: 3px;
+        padding: 4px;
     }
 }
 
 #toolbar-info {
     background-color: rgba(255, 255, 255, 0.8);
-    color: black; border: 1px solid #333;
+    color: rgb(160, 54, 54); border: 1px solid #333;
     border-radius: 10px; padding: 8px;
     font-family: sans-serif; pointer-events: none;
 }
@@ -193,12 +195,13 @@ body, html, #cesiumContainer {
 }
 
 .summary-card {
+    position: relative;
     background: rgba(25, 25, 25, 0.9);
     color: white;
-    padding: 5px;
-    border-radius: 3px;
+    padding: 20px;
+    border-radius: 5px;
     border: 1px solid #444;
-    width: 220px;
+    max-width: 200px;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
@@ -266,6 +269,11 @@ body, html, #cesiumContainer {
     font-size: 14px;
     line-height: 25px;
     text-align: center;
+    z-index: 10;
+}
+.close-btn:hover {
+    color: #ffffff;
+    transform: scale(1.1);
 }
 
 .button-group {
@@ -299,9 +307,9 @@ body, html, #cesiumContainer {
 }
 
 #current-score-text {
-    color: #fcfdfc;                      /* Warna teks skor jadi hijau terang */
-    font-weight: 800;
-    font-size: 1.1em;
+    color: #fcfdfc;                      
+    font-weight: 600;
+    font-size: 1em;
 }
 
 .scorecard-scroll-box {

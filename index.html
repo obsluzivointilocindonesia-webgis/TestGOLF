@@ -20,6 +20,16 @@
     ← Back To Web
 </button>
 
+<div id="user-info-panel" style="position: fixed; top: calc(60px + env(safe-area-inset-top)); left: 15px; width: 200px; z-index: 1011; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.7); padding: 8px; border-radius: 8px; border-bottom: 1px solid #444; backdrop-filter: blur(5px);">
+    <div>
+        <small style="color: #aaa; font-size: 0.5rem; display: block;">GOLFER</small>
+        <strong id="display-user-name" style="color: #00ff88; font-size: 1rem;">User</strong>
+        <span id="user-status-badge" style="font-size: 0.5rem; padding: 2px 5px; border-radius: 10px; margin-left: 5px;"></span>
+    
+    <button id="logoutBtn" style="background: none; border: 1px solid #ff4444; color: #ff4444; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; cursor: pointer;">
+        Logout
+    </button></div>
+</div>
 
 <div id="auth-overlay" class="auth-box">
     <div class="auth-container">
@@ -38,20 +48,18 @@
     </div>
 </div>
 
-    <div id="cesiumContainer"></div>
-    <div id="chartContainer">
-        <div class="chart-wrapper">
+<div id="cesiumContainer"></div>
+<div id="chartContainer">
+    <div class="chart-wrapper">
         <button class="close-btn" onclick="toggleElement('chartContainer')">✕</button>
         <canvas id="profileChart"></canvas>
     </div>
 </div>
 
 <div class="ui-overlay">
-     
-</button>
-        <div id="hole-selector-container"><br><br>
+    <div id="hole-selector-container"><br><br><br><br><br><br>
             <select id="holeSelect" class="menu-button-ops">
-            <option value="">-- Hole # --</option>
+            <option value="">Hole #</option>
             <option value="1">Hole 1</option>
             <option value="2">Hole 2</option>
             <option value="3">Hole 3</option>
@@ -71,90 +79,79 @@
             <option value="17">Hole 17</option>
             <option value="18">Hole 18</option>
             </select>
-        </div>
-        <div id="toolbar-info">
+    </div>
+    <div id="toolbar-info" class="toolbar-info">
             <strong>Instruction:</strong><br>
+            Select Hole#<br>
             Click on the map to start!
-        </div>
+    </div>
 
-        <button id="clearBtn" class="btn btn-navy">Clear ALL</button>
-        <button id="contourBtn" class="btn btn-dark">Contour: OFF</button>
-        <button id="undoBtn" class="menu-button" style="background-color: #9e4949;">Del-Point</button>
-        <button id="saveTrackBtn" class="menu-button" style="background-color: #27ae60;">Save</button>
-        <button id="historyBtn" class="menu-button" style="background-color: #2980b9;">History</button>
-        <button id="deleteHistoryBtn" class="menu-button" style="background-color: #4a4f52;">Del-Track</button>
+    <button id="clearBtn" class="btn btn-navy">Clear ALL</button>
+    <button id="contourBtn" class="btn btn-dark">Contour: OFF</button>
+    <button id="undoBtn" class="menu-button" style="background-color: #9e4949;">Del Point</button>
+    <button id="saveTrackBtn" class="menu-button" style="background-color: #27ae60;">Save</button>
+    <button id="historyBtn" class="menu-button" style="background-color: #2980b9;">History</button>
+    <button id="deleteHistoryBtn" class="menu-button" style="background-color: #4a4f52;">Del Track</button>
         
-        
-        <div class="score-badge-container">
+    <div class="score-badge-container">
             <strong>SCORE :</strong><br> 
-            <span id="current-score-text">-</span>
-            <button id="toggleScorecardBtn" class="score-badge-container">📊 SC ON/OFF
-        </div>
-        
-        </button>
-        <div id="score-summary-container" class="summary-card">
-        
-        <strong>Summary SC</strong><br>
-        
-        <div id="user-info-panel" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 8px;">
-            <div>
-                <small style="color: #aaa; font-size: 0.5rem; display: block;">GOLFER</small>
-                <strong id="display-user-name" style="color: #00ff88; font-size: 0.9rem;">User</strong>
-                <span id="user-status-badge" style="font-size: 0.5rem; padding: 2px 5px; border-radius: 10px; margin-left: 5px;"></span>
-            </div>
-                <button id="logoutBtn" style="background: none; border: 1px solid #ff4444; color: #ff4444; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; cursor: pointer;">
-                    Logout
-                </button>
-        </div>
-            <button id="newGameBtn" class="menu-button" style="background-color: #192cbb;">New Ronde</button>
-        <hr>
-        <div class="summary-grid">
-            <div class="summary-item">
-                <span class="label">Total Strokes</span>
-                <span id="total-strokes-val" class="value">0</span>
-            </div>
-            <div class="summary-item">
-                <span class="label">Total PAR</span>
-                <span id="total-par-val" class="value">0</span>
-            </div>
-            <div class="summary-item">
-                <span class="label">Holes Played</span>
-                <span id="holes-played-val" class="value">0/18</span>
-            </div>
-        </div>
-    <div id="over-under-status" class="status-badge">Even</div>
-        
-    <div id="report-section" style="margin-top: 20px;">
-        <div class="button-group">
-            <button id="viewDetailBtn" class="btn-golf">SC Card</button>
-            <button id="exportPdfBtn" class="btn-golf" style="background: #27ae60;">PDF</button>
-        </div>
-
+            <span id="current-score-text">-</span><br>
+            <button id="toggleScorecardBtn" class="menu-button" style="background-color: #29493b;" position="center">Summary
+            <button id="newGameBtn" class="menu-button" style="background-color: #29493b;">New Round</button>
     </div>
-</div>
-
-<div id="detail-scorecard-container" class="horizontal-panel">
-    <button class="close-btn" onclick="toggleElement('detail-scorecard-container')">✕</button>
-    <h4 style="color: #00ff88; margin: 0 0 10px 0; font-size: 14px;">TerraGOLF - Detail Scorecard</h4>
-    <div class="table-responsive">
-        <table id="detail-scorecard-table">
-            <thead>
-                <tr id="table-header-row">
-                    </tr>
-            </thead>
-            <tbody>
-                <tr id="table-strokes-row">
-                    </tr>
-                <tr id="table-par-row">
-                    </tr>
-            </tbody>
-        </table>
+        
+    <div id="score-summary-container" class="summary-card">
+        <div>
+        <button class="close-btn" onclick="toggleElement('score-summary-container')">✕</button> </div>
+        <strong>Last Round Summary</strong><br>
+            <hr>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <span class="label">Total Strokes</span>
+                    <span id="total-strokes-val" class="value">0</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">Total PAR</span>
+                    <span id="total-par-val" class="value">0</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">Holes Played</span>
+                    <span id="holes-played-val" class="value">0/18</span>
+                </div>
+            </div>
+        <div id="over-under-status" class="status-badge">Even</div>
+            
+        <div id="report-section" style="margin-top: 20px;">
+            <div class="button-group">
+                <button id="viewDetailBtn" class="btn-golf">Detail</button>
+                <button id="exportPdfBtn" class="btn-golf" style="background: #27ae60;">PDF</button>
+            </div>
+        </div>
     </div>
-</div>
 
+    <div id="detail-scorecard-container" class="horizontal-panel">
+        <button class="close-btn" onclick="toggleElement('detail-scorecard-container')">✕</button>
+        <h4 style="color: #00ff88; margin: 0 0 10px 0; font-size: 14px;">TerraGOLF - Detail Scorecard</h4>
+        <div class="table-responsive">
+            <table id="detail-scorecard-table">
+                <thead>
+                    <tr id="table-header-row">
+                        </tr>
+                </thead>
+                <tbody>
+                    <tr id="table-strokes-row">
+                        </tr>
+                    <tr id="table-par-row">
+                        </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
     <button id="focusGpsBtn" style="position:fixed; bottom:20px; right:20px; width:50px; height:50px; border-radius:50%; background: white; border: 2px solid #00ff88; cursor: pointer; z-index: 1000;">
     📍
+
+
 </button>
     <script src="main.js"></script>
 </body>
