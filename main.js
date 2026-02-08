@@ -6,7 +6,7 @@ const supabaseUrl = 'https://jltjrfhbreswadzlexzg.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsdGpyZmhicmVzd2FkemxleHpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjA4NjIsImV4cCI6MjA4NTY5Njg2Mn0.mS7QjBoWBS-xYZcAE--SaZHioJ_RqA57l_Bs5p6ppag';
 const sb = supabase.createClient(supabaseUrl, supabaseKey);
 
-Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxYjJiNmQzZC1hNTc0LTRhM2MtYjI2Yy1jZmQ2ZTZmNzY0YTMiLCJpZCI6Mzg0MjAyLCJpYXQiOjE3NzAzOTYwNzF9.YfLtke7hqAh66vLe_iaVxqCt8iB9PFTUk5GXSgVpq6c"
+Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzY2ZhMGQ3MS1mYzYwLTQ1NzktODY1Mi1lODRhZjRmMWE4Y2EiLCJpZCI6Mzg0MjAyLCJpYXQiOjE3Njk1Njg5ODJ9.5U2zZd_um-3-iYrpnfZg1Xt7eI7N_CPTCQHoa2xB0jQ"
 const viewer = new Cesium.Viewer('cesiumContainer', {
     terrain: Cesium.Terrain.fromWorldTerrain(),
 });
@@ -1524,3 +1524,185 @@ function setNavButtonsDisplay(status) {
         if (btn) btn.style.display = status;
     });
 }
+
+// Cetak Histori Berdasarkan ROUND
+// 1. Fungsi Utama Cetak (Pastikan nama tabel sesuai database: 'trackers')
+async function printRoundFromSupabase(targetRoundId) {
+    try {
+        console.log("Fetching details for Round:", targetRoundId);
+        
+        const { data: scores, error } = await sb
+            .from('tracks')
+            .select('*')
+            .eq('round_id', targetRoundId)
+            .order('hole_number', { ascending: true }); // Pastikan kolomnya 'hole_number'
+
+        if (error) throw error;
+        if (!scores || scores.length === 0) return alert("Data detail tidak ditemukan.");
+
+        const tbody = document.getElementById('table-body-detail-pdf');
+        tbody.innerHTML = "";
+        let tStrokes = 0, tPar = 0;
+
+        scores.forEach(track => {
+            // Sesuaikan nama kolom: hole_number atau hole? skor_term atau score_term?
+            tbody.innerHTML += `
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${track.hole_number || track.hole}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${track.par}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${track.strokes}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${track.skor_term || track.score_term || '-'}</td>
+                </tr>`;
+            tStrokes += parseInt(track.strokes || 0);
+            tPar += parseInt(track.par || 0);
+        });
+
+        // Update UI Template PDF
+        document.getElementById('total-par-pdf').textContent = tPar;
+        document.getElementById('total-strokes-pdf').textContent = tStrokes;
+        document.getElementById('total-diff-pdf').textContent = (tStrokes - tPar > 0 ? "+" : "") + (tStrokes - tPar);
+        document.getElementById('pdf-player-name').textContent = document.getElementById('display-user-name').textContent;
+        
+        const dateStr = new Date(parseInt(targetRoundId)).toLocaleDateString('id-ID');
+        document.getElementById('pdf-date').textContent = "Ronde: " + dateStr;
+
+        // Proses Cetak
+        const element = document.getElementById('pdf-report-hidden');
+        element.style.display = "block";
+        
+        html2pdf().from(element).set({
+            margin: 0.5,
+            filename: `Scorecard_${targetRoundId}.pdf`,
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+        }).save().then(() => {
+            element.style.display = "none";
+        });
+
+    } catch (err) {
+        alert("Gagal cetak: " + err.message);
+    }
+}
+
+// WAJIB: Ekspos ke Global agar onclick di HTML bisa melihat fungsi ini
+window.printRoundFromSupabase = printRoundFromSupabase;
+
+// 2. Fungsi Menampilkan Daftar Ronde (Gunakan Modal, Hindari Prompt)
+async function showHistoryRounds() {
+    try {
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user) return alert("Sesi login tidak ditemukan.");
+
+        // Langsung tampilkan modal tanpa tanya-tanya lagi
+        toggleElement('history-modal');
+        const listContainer = document.getElementById('history-list-container');
+        listContainer.innerHTML = "<p style='color: #00ff88; font-size: 0.8rem;'>Sinkronisasi Cloud...</p>";
+
+        const { data, error } = await sb
+            .from('tracks')
+            .select('round_id, created_at')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Filter unik round_id
+        const uniqueRounds = [...new Map(data.map(item => [item.round_id, item])).values()];
+
+        if (uniqueRounds.length === 0) {
+            listContainer.innerHTML = "<p style='color:#ccc;'>Belum ada data histori.</p>";
+            return;
+        }
+
+        listContainer.innerHTML = "";
+        uniqueRounds.forEach(round => {
+            const dateObj = new Date(parseInt(round.round_id) || round.created_at);
+            const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+            const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+            const item = document.createElement('div');
+            item.className = "history-item-row"; 
+            item.style = "background: rgba(255,255,255,0.05); padding: 12px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;";
+            
+            item.innerHTML = `
+                <div>
+                    <div style="font-size: 0.9rem; font-weight: bold; color: white;">${dateStr}</div>
+                    <div style="font-size: 0.7rem; color: #888;">Jam ${timeStr} WIB</div>
+                </div>
+                <button class="btn-print-action" data-roundid="${round.round_id}" 
+                        style="background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">
+                    CETAK
+                </button>
+            `;
+            listContainer.appendChild(item);
+        });
+
+    } catch (err) {
+        console.error(err);
+        alert("Gagal memuat histori.");
+    }
+}
+
+// Hubungkan tombol utama ke fungsi modal
+//document.getElementById('btnHistoryRounds').addEventListener('click', showHistoryRounds);
+
+document.getElementById('btnHistoryRounds').addEventListener('click', async () => {
+    // 1. Ambil User ID secara aman
+    const { data: { user } } = await sb.auth.getUser(); // Pastikan pakai 'sb' sesuai skripmu
+    
+    if (!user) {
+        alert("Please login first.");
+        return;
+    }
+
+    // 2. Ambil semua tracks untuk user ini
+    const { data: cloudTracks, error } = await sb
+        .from('tracks')
+        .select('round_id, created_at, hole_number')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+    if (error || !cloudTracks.length) {
+        alert("No history found in cloud.");
+        return;
+    }
+
+    // 3. Kelompokkan berdasarkan round_id (karena 1 round punya banyak hole)
+    const roundsMap = new Map();
+    cloudTracks.forEach(t => {
+        if (!roundsMap.has(t.round_id)) {
+            roundsMap.set(t.round_id, t.created_at);
+        }
+    });
+
+    
+});
+
+// Menangani klik pada tombol cetak di dalam modal (Event Delegation)
+document.addEventListener('click', function (e) {
+    if (e.target && e.target.classList.contains('btn-print-history')) {
+        const targetRoundId = e.target.getAttribute('data-id');
+        console.log("Tombol ditekan untuk ID:", targetRoundId);
+        
+        // Panggil fungsi cetak
+        printRoundFromSupabase(targetRoundId);
+    }
+});
+
+
+// Menangani klik tombol Cetak di dalam modal
+document.addEventListener('click', function(e) {
+    if (e.target && e.target.classList.contains('btn-print-action')) {
+        const rid = e.target.getAttribute('data-roundid');
+        printRoundFromSupabase(rid);
+    }
+});
+
+// Menangani klik tombol utama "Print Other Round"
+const btnHistory = document.getElementById('btnHistoryRounds');
+if (btnHistory) {
+    btnHistory.addEventListener('click', showHistoryRounds);
+}
+
+// Pastikan tombol utama terhubung
+document.getElementById('btnHistoryRounds').addEventListener('click', showHistoryRounds);
