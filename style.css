@@ -298,6 +298,7 @@ body, html, #cesiumContainer {
 
 .score-badge-container {
     background: rgba(15, 48, 33, 0.8); /* Hijau transparan tipis */
+    display: flex;
     padding: 8px 12px;
     border-radius: 8px;
     margin: 5px 0;
