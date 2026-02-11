@@ -1409,22 +1409,45 @@ async function checkAccess() {
 
     const badge = document.getElementById('user-status-badge');
 
-    if (now > validUntil) {
-        // --- JIKA SUDAH EXPIRED ---
+    if (now > validUntil || (!currentUser.is_paid && diffDays > 7)) {
+        // --- JIKA TRIAL HABIS ATAU SUBSCRIPTION EXPIRED ---
         overlay.style.display = 'flex';
         document.getElementById('auth-title').textContent = "Akses Terkunci";
         document.getElementById('auth-subtitle').innerHTML = 
-            `Masa berlaku akun Anda telah habis.<br>Silakan lakukan pembayaran bulanan untuk melanjutkan.`;
+            `Masa trial/berlangganan habis.<br>Pilih metode aktivasi di bawah:`;
         
-        // Sembunyikan input, tampilkan tombol WA
+        // Sembunyikan form input login
         document.getElementById('auth-email').style.display = 'none';
         document.getElementById('auth-pass').style.display = 'none';
         
-        const btn = document.getElementById('auth-primary-btn');
-        btn.textContent = "30-day Activation (WhatsApp)";
-        btn.onclick = () => window.open(`https://wa.me/628119901599?text=Halo Admin, I want to extend my subscripion for 1 month. Email: ${currentUser.email}`);
+        // Ambil container tombol (pastikan Anda punya div pembungkus tombol di HTML)
+        const btnContainer = document.getElementById('auth-primary-btn').parentElement;
         
-    } else {
+        // Reset isi container agar tidak duplikat saat fungsi dipanggil ulang
+        btnContainer.innerHTML = '';
+
+        // TOMBOL 1: OTOMATIS (XENDIT)
+        const btnXendit = document.createElement('button');
+        btnXendit.className = "auth-btn"; // samakan class dengan CSS Anda
+        btnXendit.style.backgroundColor = "#00ff88";
+        btnXendit.style.color = "#000";
+        btnXendit.style.marginBottom = "10px";
+        btnXendit.textContent = "Automatic Activation (Instant)";
+        btnXendit.onclick = () => startXenditPayment(currentUser);
+        btnContainer.appendChild(btnXendit);
+
+        // TOMBOL 2: MANUAL (WHATSAPP)
+        const btnWA = document.createElement('button');
+        btnWA.className = "auth-btn";
+        btnWA.style.backgroundColor = "transparent";
+        btnWA.style.border = "1px solid #25D366";
+        btnWA.style.color = "#25D366";
+        btnWA.textContent = "Aktivasi via WhatsApp (Manual)";
+        btnWA.onclick = () => window.open(`https://wa.me/628119901599?text=Halo Admin, I want to extend TerraGOLF. Email: ${session.user.email}`);
+        btnContainer.appendChild(btnWA);
+    }   
+    
+    else {
         // --- JIKA MASIH AKTIF ---
         overlay.style.display = 'none';
         
@@ -1439,6 +1462,50 @@ async function checkAccess() {
     }
 }
 checkAccess();
+
+// akses Xendit Payment
+async function startXenditPayment(userProfile) {
+    // 1. Ambil email dari auth
+    const { data: { user } } = await sb.auth.getUser();
+    const userEmail = user?.email;
+
+    // 2. AMBIL ANON KEY ANDA (Copy dari Dashboard Supabase)
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsdGpyZmhicmVzd2FkemxleHpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjA4NjIsImV4cCI6MjA4NTY5Njg2Mn0.mS7QjBoWBS-xYZcAE--SaZHioJ_RqA57l_Bs5p6ppag"; 
+
+    if (!userEmail) {
+        alert("Email tidak ditemukan. Silakan login kembali.");
+        return;
+    }
+
+    try {
+        const response = await fetch('https://jltjrfhbreswadzlexzg.supabase.co/functions/v1/xendit-payment', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}` // Tambahkan baris ini
+            },
+            body: JSON.stringify({
+                userId: userProfile.id,
+                email: userEmail,
+                fullName: userProfile.full_name || "Golfer"
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.invoice_url) {
+            window.location.href = data.invoice_url;
+        } else {
+            console.error("Xendit Error:", data);
+            alert("Gagal: " + (data.error || data.message || "Respon tidak valid"));
+        }
+
+    } catch (err) {
+        console.error("Detail Error:", err);
+        alert("Gagal menghubungi server: " + err.message);
+    }
+}
+
 
 // akses any device
 async function loadTracksFromCloud() {
@@ -1710,3 +1777,18 @@ if (btnHistory) {
 
 // Pastikan tombol utama terhubung
 document.getElementById('btnHistoryRounds').addEventListener('click', showHistoryRounds);
+//
+
+//-------------------
+// PELANGGAN PRREMIUM
+async function activatePremium(userId) {
+    const { data, error } = await sb
+      .from('profiles')
+      .update({ 
+          is_paid: true, 
+          valid_until: new Date(new Date().setMonth(new Date().getMonth() + 1)) 
+      })
+      .eq('id', userId);
+      
+    if (!error) alert("Selamat! TerraGOLF Anda sekarang Premium.");
+}
