@@ -1,8 +1,0 @@
-[{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "com.obsluzivo.terragolf",
-        "sha256_cert_fingerprints": ["75:F6:28:1E:0F:04:E9:35:3B:31:95:C0:37:4F:5C:85:A1:53:D2:A1:45:9A:71:68:72:DA:DD:D8:A1:B7:DD:92"]
-      }
-    }]
