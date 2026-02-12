@@ -1,0 +1,19 @@
+{
+  "background_color": "#ffffff",
+  "description": "TerraGOLF 3D Realistic GOLF Tracker",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "TerraGOLF",
+  "orientation": "any",
+  "short_name": "TerraGOLF",
+  "start_url": "/terra-golf/",
+  "theme_color": "#ffffff",
+  "id": "com.TerraGOLF.app",
+  "icons": [
+    {
+      "src": "/terra-golf/LOGO TERRAGOLF.png",
+      "type": "image/png",
+      "sizes": "585x585"	
+    }
+  ]
+}
