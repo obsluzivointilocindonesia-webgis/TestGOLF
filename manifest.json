@@ -1,15 +1,12 @@
 {
-  "background_color": "#ffffff",
-  "dir": "ltr",
-  "display": "standalone",
-  "name": "TerraGOLF 3D Golf Tracker",
-  "orientation": "any",
-  "scope": "/",
+  "name": "TerraGOLF",
   "short_name": "TerraGOLF",
+  "description": "3D Realistic Golf Tracker",
   "start_url": "/terra-golf/",
-  "theme_color": "#2E7D32", 
-  "description": "Terra Golf is a 3D golf tracker that uses realistic 3D maps to plan and record your game. Know the terrain to become a master. TerraGOLF precision in every dimension.",
-  "id": "com.terragolf.app",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2E7D32",
+  "scope": "/terra-golf/",
   "icons": [
     {
       "src": "LOGO TERRAGOLF.png",
