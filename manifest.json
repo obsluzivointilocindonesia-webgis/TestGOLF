@@ -4,7 +4,7 @@
   "display": "standalone",
   "name": "TerraGOLF 3D Golf Tracker",
   "orientation": "any",
-  "scope": "/terra-golf/",
+  "scope": "/",
   "short_name": "TerraGOLF",
   "start_url": "/terra-golf/",
   "theme_color": "#2E7D32", 
