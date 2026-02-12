@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>TerraGOLF | 3D Golf Tracker</title>
+    </head>
+<head>
+    <link rel="manifest" href="/terra-golf/manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+<div id="pdf-report-hidden" style="display: none; background: white; color: black; padding: 20px; font-family: Arial, sans-serif;">
+    <h2 style="text-align: center; color: #1a472a;">DAGO HERITAGE 1917 GOLF COURSE</h2>
+    <p id="pdf-date" style="text-align: right; font-size: 12px;"></p>
+    <p>Player: <strong id="pdf-player-name">User</strong></p>
+    
+    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+        <thead>
+            <tr style="background: #1a472a; color: white;">
+                <th style="border: 1px solid #ddd; padding: 8px;">Hole</th>
+                <th style="border: 1px solid #ddd; padding: 8px;">PAR</th>
+                <th style="border: 1px solid #ddd; padding: 8px;">Strokes</th>
+                <th style="border: 1px solid #ddd; padding: 8px;">Score</th>
+            </tr>
+        </thead>
+        <tbody id="table-body-detail-pdf">
+            </tbody>
+        <tfoot>
+            <tr style="font-weight: bold; background: #eee;">
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">TOTAL</td>
+                <td id="total-par-pdf" style="border: 1px solid #ddd; padding: 8px; text-align: center;">0</td>
+                <td id="total-strokes-pdf" style="border: 1px solid #ddd; padding: 8px; text-align: center;">0</td>
+                <td id="total-diff-pdf" style="border: 1px solid #ddd; padding: 8px; text-align: center;">0</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+<button id="backToWebBtn" class="back-btn">
+    ← Back To Web
+</button>
+
+<div id="user-info-panel" style="position: fixed; top: calc(60px + env(safe-area-inset-top)); left: 15px; width: 200px; z-index: 1011; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.7); padding: 8px; border-radius: 8px; border-bottom: 1px solid #444; backdrop-filter: blur(5px);">
+    <div>
+        <small style="color: #aaa; font-size: 0.5rem; display: block;">GOLFER</small>
+        <strong id="display-user-name" style="color: #00ff88; font-size: 1rem;">User</strong>
+        <span id="user-status-badge" style="font-size: 0.5rem; padding: 2px 5px; border-radius: 10px; margin-left: 5px;"></span>
+    
+    <button id="logoutBtn" style="background: none; border: 1px solid #ff4444; color: #ff4444; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; cursor: pointer;">
+        Logout
+    </button></div>
+</div>
+
+<div id="auth-overlay" class="auth-box">
+    <div class="auth-container">
+        <h2 id="auth-title">Welcome to TerraGOLF<br> DAGO HERITAGE 1917</h2>
+        <p id="auth-subtitle">Please login to start.</p>
+        
+        <input type="email" id="auth-email" placeholder="Email Anda" class="auth-input">
+        <input type="password" id="auth-pass" placeholder="Password" class="auth-input">
+        
+        <div id="register-fields" style="display: none;">
+            <input type="text" id="auth-name" placeholder="Nama Lengkap" class="auth-input">
+        </div>
+
+        <button id="auth-primary-btn" class="auth-btn">Sign In</button>
+        <p class="auth-switch">Don't have an account? <span id="toggle-auth">Sign Up</span></p>
+    </div>
+</div>
+
+<div id="cesiumContainer"></div>
+<div id="chartContainer">
+    <div class="chart-wrapper">
+        <button class="close-btn" onclick="toggleElement('chartContainer')">✕</button>
+        <canvas id="profileChart"></canvas>
+    </div>
+</div>
+
+<div class="ui-overlay">
+    <div id="hole-selector-container"><br><br><br><br><br>
+            <select id="holeSelect" class="menu-button-ops">
+            <option value="">Hole #</option>
+            <option value="1">Hole 1: 484</option>
+            <option value="2">Hole 2: 154</option>
+            <option value="3">Hole 3: 182</option>
+            <option value="4">Hole 4: 320</option>
+            <option value="5">Hole 5: 274</option>
+            <option value="6">Hole 6: 289</option>
+            <option value="7">Hole 7: 239</option>
+            <option value="8">Hole 8: 295</option>
+            <option value="9">Hole 9: 239</option>
+            <option value="10">Hole 10: 339</option>
+            <option value="11">Hole 11: 156</option>
+            <option value="12">Hole 12: 339</option>
+            <option value="13">Hole 13: 294</option>
+            <option value="14">Hole 14: 384</option>
+            <option value="15">Hole 15: 77</option>
+            <option value="16">Hole 16: 247</option>
+            <option value="17">Hole 17: 302</option>
+            <option value="18">Hole 18: 491</option>
+            </select>
+    </div>
+    <div id="toolbar-info" class="toolbar-info">
+            <strong>Instruction:</strong><br>
+            Select Hole#<br>
+            Click on the map to start!
+    </div>
+
+    <button id="clearBtn" class="btn btn-navy">Clear ALL</button>
+    <button id="contourBtn" class="btn btn-dark">Contour: OFF</button>
+    <button id="undoBtn" class="menu-button" style="background-color: #9e4949;">Del Point</button>
+    <button id="saveTrackBtn" class="menu-button" style="background-color: #27ae60;">Save</button>
+    <button id="historyBtn" class="menu-button" style="background-color: #2980b9;">History</button>
+    <button id="deleteHistoryBtn" class="menu-button" style="background-color: #4a4f52;">Del Track</button>
+        
+    <div class="score-badge-container">
+            <strong>SCORE :</strong><br> 
+            <span id="current-score-text">-</span><br>
+            <div class="button-group">
+                <button id="toggleScorecardBtn" class="menu-button" style="background-color: #0d1b15;" position="center">Summary
+                <button id="newGameBtn" class="menu-button" style="background-color: #0d1b15;">New Round</button>
+            </div>
+    </div>
+        
+    <div id="score-summary-container" class="summary-card">
+        <div>
+        <button class="close-btn" onclick="toggleElement('score-summary-container')">✕</button> </div>
+        <strong>Last Round Summary</strong><br>
+            <hr>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <span class="label">Total Strokes</span>
+                    <span id="total-strokes-val" class="value">0</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">Total PAR</span>
+                    <span id="total-par-val" class="value">0</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">Holes Played</span>
+                    <span id="holes-played-val" class="value">0/18</span>
+                </div>
+            </div>
+        <div id="over-under-status" class="status-badge">Even</div>
+            
+        <div id="report-section" style="margin-top: 20px;">
+            <div class="button-group">
+                <button id="viewDetailBtn" class="btn-golf">Detail</button>
+                <button id="exportPdfBtn" class="btn-golf" style="background: #27ae60;">PDF</button>
+            </div>
+        </div>
+        <button id="btnHistoryRounds" class="btn-golf" style="background: #8e44ad;">Print Other Round</button>
+
+        <div id="history-modal" class="auth-box" style="display: none; z-index: 2000;">
+            <div class="auth-container" style="max-width: 400px; max-height: 80vh; overflow-y: auto;">
+                <button class="close-btn" onclick="toggleElement('history-modal')">✕</button>
+                <h3 style="color: #00ff88; margin-top: 0;">History Rounds</h3>
+                <p style="font-size: 0.8rem; color: #ccc;">Select a Round to Print</p>
+                <hr border "1" style="border-color: #444;">
+                
+                <div id="history-list-container" style="margin-top: 15px;">
+                    <p style="font-size: 0.8rem;">Loading history...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="detail-scorecard-container" class="horizontal-panel">
+        <button class="close-btn" onclick="toggleElement('detail-scorecard-container')">✕</button>
+        
+        <h4 style="color: #00ff88; margin: 0; font-size: 14px;">TerraGOLF - DAGO HERITAGE 1917</h4>
+        <small id="pdf-date" style="color: #aaa;"></small>
+        
+        <div class="table-responsive" id="pdf-area">
+            <table id="detail-scorecard-table">
+                <thead>
+                    <tr id="table-header-row"></tr>
+                </thead>
+                <tbody>
+                    <tr id="table-strokes-row"></tr>
+                    <tr id="table-par-row"></tr>
+                </tbody>
+            </table>
+            
+            <div id="pdf-footer" style="margin-top: 10px; color: white; font-size: 12px; display: none;">
+                <span>Total Strokes: <strong id="total-strokes-pdf"></strong></span> | 
+                <span>Total PAR: <strong id="total-par-pdf"></strong></span> | 
+                <span>Diff: <strong id="total-diff-pdf"></strong></span>
+            </div>
+        </div>
+    </div>
+    <button id="focusGpsBtn" style="position:fixed; bottom:20px; right:20px; width:50px; height:50px; border-radius:50%; background: white; border: 2px solid #00ff88; cursor: pointer; z-index: 1000;">
+    📍
+
+</button>
+    <script src="main.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/terra-golf/pwabuilder-sw.js');
+        }
+    </script>
+</body>
+</html>

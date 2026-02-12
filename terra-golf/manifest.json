@@ -1,19 +1,18 @@
 {
-  "background_color": "#ffffff",
-  "description": "TerraGOLF 3D Realistic GOLF Tracker",
-  "dir": "ltr",
-  "display": "standalone",
   "name": "TerraGOLF",
-  "orientation": "any",
   "short_name": "TerraGOLF",
-  "start_url": "obsluzivo.com/terra-golf/",
-  "theme_color": "#ffffff",
-  "id": "com.TerraGOLF.app",
+  "description": "3D Golf Tracker",
+  "start_url": "/terra-golf/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2E7D32",
+  "scope": "/terra-golf/",
   "icons": [
     {
-      "src": "/terra-golf/LOGO TERRAGOLF.png",
+      "src": "LOGO TERAGOLF.png",
+      "sizes": "585x585",
       "type": "image/png",
-      "sizes": "585x585"	
+      "purpose": "any maskable"
     }
   ]
 }
