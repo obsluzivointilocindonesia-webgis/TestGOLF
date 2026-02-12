@@ -1,0 +1,11 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "app.obsluzivo",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "app.obsluzivo",
+  "start_url": "/",
+  "theme_color": "#ffffff"
+}
