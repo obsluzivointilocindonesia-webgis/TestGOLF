@@ -1,0 +1,6 @@
+"relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.obsluzivointilocindonesia_webgis.twa",
+        "sha256_cert_fingerprints": ["D8:6A:BE:2B:78:29:8E:E1:A7:87:0D:5A:F8:FB:D0:62:83:3C:0A:58:20:59:DC:51:2C:02:D1:48:FC:A1:A9:94"]
+      }
