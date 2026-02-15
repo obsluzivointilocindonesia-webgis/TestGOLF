@@ -1099,53 +1099,38 @@ document.getElementById('exportPdfBtn').addEventListener('click', async () => {
 
 // FUNGSI TABEL VERTIKAL SEMBUNYI
 function prepareHiddenPdfTable() {
-    // Jika data cloud kosong, jangan paksa cetak
     if (!groupData || groupData.length === 0) return false;
 
     const tbody = document.getElementById('table-body-detail-pdf');
-    const thead = document.querySelector('#pdf-report-hidden table thead');
     if (!tbody) return false;
 
-    // 1. Identifikasi semua pemain dalam grup
     const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Golfer'))];
-
-    // 2. Update Header PDF (Dinamis sesuai jumlah pemain)
+    
+    // Header PDF Dinamis
+    const thead = document.querySelector('#pdf-report-hidden thead');
     thead.innerHTML = `
         <tr style="background: #1a472a; color: white;">
-            <th style="border: 1px solid #ddd; padding: 8px;">Hole</th>
-            <th style="border: 1px solid #ddd; padding: 8px;">PAR</th>
-            ${players.map(p => `<th style="border: 1px solid #ddd; padding: 8px;">${p}</th>`).join('')}
-        </tr>
-    `;
+            <th>Hole</th><th>PAR</th>
+            ${players.map(p => `<th>${p}</th>`).join('')}
+        </tr>`;
 
-    // 3. Isi Data Hole 1 - 18
+    // Isi Baris Hole 1-18
     tbody.innerHTML = "";
-    let totalPar = 0;
-
     for (let h = 1; h <= 18; h++) {
-        const holeEntries = groupData.filter(s => s.hole_number === h);
-        const parVal = holeEntries.length > 0 ? holeEntries[0].par : 0;
-        totalPar += parVal;
-
-        let rowHtml = `<tr>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${h}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${parVal || '-'}</td>`;
-
+        const rowData = groupData.filter(s => s.hole_number === h);
+        const par = rowData.length > 0 ? rowData[0].par : '-';
+        
+        let row = `<tr><td>${h}</td><td>${par}</td>`;
         players.forEach(p => {
-            const pScore = groupData.find(s => s.hole_number === h && s.profiles?.full_name === p);
-            rowHtml += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${pScore ? pScore.strokes : '-'}</td>`;
+            const s = groupData.find(score => score.hole_number === h && score.profiles.full_name === p);
+            row += `<td>${s ? s.strokes : '-'}</td>`;
         });
-
-        rowHtml += `</tr>`;
-        tbody.innerHTML += rowHtml;
+        row += `</tr>`;
+        tbody.innerHTML += row;
     }
-
-    // 4. Update Ringkasan Bawah
-    document.getElementById('total-par-pdf').textContent = totalPar;
-    document.getElementById('pdf-player-name').textContent = players.join(', ');
-    
     return true;
 }
+
 
 //-----------------------------------------
 // REGISTER
@@ -1869,38 +1854,32 @@ async function activatePremium(userId) {
 //MULTIPLE PLAYER
 async function syncMultiplayer() {
     const inputId = document.getElementById('roundIdInput').value;
-    if (!inputId) {
-        Swal.fire('Info', 'Masukkan Round ID Grup Anda', 'info');
-        return;
-    }
+    if (!inputId) return Swal.fire('Info', 'Masukkan Round ID', 'info');
 
     currentSyncRoundId = inputId;
-    document.getElementById('active-round-display').innerText = inputId;
+    localStorage.setItem('active_round_id', inputId);
 
-    // 1. Ambil data awal
-    fetchGroupScores();
+    // Ambil data awal
+    await fetchGroupScores();
 
-    // 2. Aktifkan Real-time Listener Supabase
-    supabase
-        .channel('golf-group')
-        .on('postgres_changes', { 
-            event: '*', 
-            schema: 'public', 
-            table: 'tracks',
-            filter: `round_id=eq.${currentSyncRoundId}` 
-        }, (payload) => {
-            console.log('Real-time Update:', payload);
-            fetchGroupScores(); // Refresh data setiap ada perubahan di grup
-        })
-        .subscribe();
+    // Gunakan 'sb' untuk Realtime
+    try {
+        sb.channel('golf-group-realtime')
+            .on('postgres_changes', { 
+                event: '*', 
+                schema: 'public', 
+                table: 'tracks',
+                filter: `round_id=eq.${inputId}` 
+            }, (payload) => {
+                console.log('Update real-time diterima!');
+                fetchGroupScores(); 
+            })
+            .subscribe();
+    } catch (e) {
+        console.warn("Realtime error:", e.message);
+    }
 
-    Swal.fire({
-        icon: 'success',
-        title: 'Sync Berhasil',
-        text: `Anda sekarang dalam grup: ${inputId}`,
-        timer: 1500,
-        showConfirmButton: false
-    });
+    Swal.fire({ icon: 'success', title: 'Synced!', text: `Grup: ${inputId}`, timer: 1500 });
 }
 
 async function fetchGroupScores() {
@@ -1908,24 +1887,24 @@ async function fetchGroupScores() {
     if (!roundId) return;
 
     try {
-        // 1. Ambil data tracks (hanya tabel tracks)
+        // TAHAP 1: Ambil data tracks saja (Menggunakan 'sb')
         const { data: trackData, error: trackError } = await sb
             .from('tracks')
-            .select('*')
+            .select('*') 
             .eq('round_id', roundId)
             .order('hole_number', { ascending: true });
 
         if (trackError) throw trackError;
 
         if (trackData && trackData.length > 0) {
-            // 2. Ambil data profiles (hanya id dan full_name)
+            // TAHAP 2: Ambil data profiles secara terpisah
             const { data: profileData, error: profileError } = await sb
                 .from('profiles')
                 .select('id, full_name');
 
             if (profileError) throw profileError;
 
-            // 3. Gabungkan manual: pasangkan user_id di tracks dengan id di profiles
+            // TAHAP 3: Gabungkan data di sisi Client (Manual Join)
             groupData = trackData.map(t => {
                 const userProfile = profileData.find(p => p.id === t.user_id);
                 return {
@@ -1936,21 +1915,15 @@ async function fetchGroupScores() {
                 };
             });
 
-            console.log("Data grup berhasil digabungkan:", groupData);
-            
-            // 4. Render tampilan
-            renderMultiplayerTable();
-            if (typeof prepareHiddenPdfTable === "function") prepareHiddenPdfTable();
+            console.log("Data grup berhasil digabung:", groupData);
+            renderMultiplayerTable(); // Update tabel di layar
             
         } else {
-            document.getElementById('multi-tbody').innerHTML = "<tr><td colspan='4' style='color:white; padding:10px;'>Data skor tidak ditemukan untuk grup ini.</td></tr>";
+            const tbody = document.getElementById('multi-tbody');
+            if(tbody) tbody.innerHTML = "<tr><td colspan='4'>Belum ada skor.</td></tr>";
         }
     } catch (err) {
         console.error("Gagal tarik data:", err.message);
-        // Jika error RLS pada profiles, kita beri fallback nama 'User'
-        if (err.message.includes('profiles')) {
-             console.warn("Mungkin ada kendala izin akses pada tabel profiles.");
-        }
     }
 }
 
@@ -2028,28 +2001,3 @@ function exportGroupPdf() {
 }
 
 //-----------------
-async function fetchGroupScores() {
-    // Ambil round ID aktif dari input
-    const roundId = document.getElementById('roundIdInput').value;
-    if (!roundId) return;
-
-    try {
-        const { data, error } = await sb
-            .from('tracks')
-            .select(`*, profiles(full_name)`)
-            .eq('round_id', roundId)
-            .order('hole_number', { ascending: true });
-
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-            groupData = data; // ISI VARIABEL GLOBAL
-            renderMultiplayerTable(); // Tampilkan di panel hitam
-            prepareHiddenPdfTable();   // Siapkan untuk PDF
-        } else {
-            document.getElementById('multi-tbody').innerHTML = "<tr><td colspan='4'>Data belum ada di cloud.</td></tr>";
-        }
-    } catch (err) {
-        console.error("Gagal tarik data:", err.message);
-    }
-}
