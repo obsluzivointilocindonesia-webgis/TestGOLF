@@ -25,8 +25,8 @@ let currentContourDataSource = null; // Gunakan DataSource untuk GeoJSON
 let currentContourLayer = null;
 let userLocationMarker = null;
 let currentRoundId = localStorage.getItem('current_round_id');
-let currentSyncRoundId = '';
-let groupData = [];
+let groupData = []; // Variabel penampung data semua pemain
+let currentSyncRoundId = ''; // Menyimpan ID Grup aktif
 
 // Jika belum ada (baru pertama kali buka aplikasi), buat satu ID awal
 if (!currentRoundId) {
@@ -1683,8 +1683,25 @@ async function printRoundFromSupabase(targetRoundId) {
         }
 
         // 3. Update Identitas di PDF
-        document.getElementById('pdf-round-id').textContent = targetRoundId;
-        document.getElementById('pdf-player-name').textContent = players.join(', ');
+        // Mengambil ID untuk tampilan (Hapus "pribadi-" jika ada)
+        const displayID = targetRoundId.replace('pribadi-', 'Session: ');
+        
+        const roundDisplayElem = document.getElementById('pdf-round-id');
+        if (roundDisplayElem) roundDisplayElem.textContent = displayID;
+
+        const playerDisplayElem = document.getElementById('pdf-player-name');
+        if (playerDisplayElem) playerDisplayElem.textContent = players.join(' & ');
+
+        // Logika Tanggal: Jika ID bukan angka (timestamp), gunakan created_at dari data pertama
+        let displayDate = "";
+        if (!isNaN(targetRoundId)) {
+            displayDate = new Date(parseInt(targetRoundId)).toLocaleDateString('id-ID');
+        } else {
+            displayDate = scores[0].created_at ? new Date(scores[0].created_at).toLocaleDateString('id-ID') : new Date().toLocaleDateString('id-ID');
+        }
+        
+        const dateElem = document.getElementById('pdf-date');
+        if (dateElem) dateElem.textContent = "Date: " + displayDate;
 
         // 4. Jalankan Cetak PDF
         const element = document.getElementById('pdf-report-hidden');
@@ -1907,41 +1924,66 @@ async function syncMultiplayer() {
 }
 
 async function fetchGroupScores() {
-    const { data, error } = await supabase
+    const roundId = document.getElementById('roundIdInput').value || currentSyncRoundId;
+    if (!roundId) return;
+
+    const { data, error } = await sb
         .from('tracks')
-        .select(`*, profiles(full_name)`)
-        .eq('round_id', currentSyncRoundId)
+        .select(`*, profiles(full_name)`) // Penting: ambil data profil
+        .eq('round_id', roundId)
         .order('hole_number', { ascending: true });
 
-    if (error) return console.error(error);
-    groupData = data;
-    renderMultiplayerTable();
+    if (error) {
+        console.error("Error fetching group:", error.message);
+        return;
+    }
+
+    groupData = data; // Simpan ke variabel global
+    renderMultiplayerTable(); // Panggil fungsi render setelah data dapat
 }
 
 function renderMultiplayerTable() {
     const thead = document.getElementById('multi-thead');
     const tbody = document.getElementById('multi-tbody');
     
-    // Ambil daftar nama unik pemain di grup
+    // Jika elemen tidak ada di HTML, kita gunakan selector tabel umum
+    if (!thead || !tbody) {
+        console.error("Elemen tabel multiplayer tidak ditemukan di HTML");
+        return;
+    }
+
+    if (!groupData || groupData.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='2' style='color:white; padding:10px;'>Menunggu data skor...</td></tr>";
+        return;
+    }
+
+    // Ambil daftar pemain unik
     const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Anonim'))];
 
-    // Buat Header
-    let headerHtml = `<tr style="background: #1a472a; color: white;"><th>Hole</th><th>PAR</th>`;
+    // 1. Render Header (Hole, PAR, Nama Pemain...)
+    let headerHtml = `<tr style="background: #1a472a; color: white;">
+                        <th style="padding: 10px; border: 1px solid #444;">Hole</th>
+                        <th style="padding: 10px; border: 1px solid #444;">PAR</th>`;
     players.forEach(p => {
-        headerHtml += `<th>${p.split(' ')[0]}</th>`; // Ambil nama depan saja biar muat
+        headerHtml += `<th style="padding: 10px; border: 1px solid #444;">${p.split(' ')[0]}</th>`;
     });
     headerHtml += `</tr>`;
     thead.innerHTML = headerHtml;
 
-    // Buat Baris 1-18
+    // 2. Render Body (Hole 1-18)
     let bodyHtml = '';
     for (let h = 1; h <= 18; h++) {
-        let parValue = groupData.find(s => s.hole_number === h)?.par || '-';
-        bodyHtml += `<tr><td>${h}</td><td>${parValue}</td>`;
+        const sample = groupData.find(s => s.hole_number === h);
+        const parVal = sample ? sample.par : '-';
         
-        players.forEach(p => {
-            const score = groupData.find(s => s.hole_number === h && s.profiles?.full_name === p);
-            bodyHtml += `<td>${score ? score.strokes : '-'}</td>`;
+        bodyHtml += `<tr style="border-bottom: 1px solid #333;">
+                        <td style="padding: 8px; text-align: center; color: #aaa;">${h}</td>
+                        <td style="padding: 8px; text-align: center; color: #fff;">${parVal}</td>`;
+        
+        players.forEach(player => {
+            const score = groupData.find(s => s.hole_number === h && s.profiles?.full_name === player);
+            const strokes = score ? score.strokes : '-';
+            bodyHtml += `<td style="padding: 8px; text-align: center; color: #00ff88; font-weight: bold;">${strokes}</td>`;
         });
         bodyHtml += `</tr>`;
     }
