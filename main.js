@@ -1152,7 +1152,7 @@ document.getElementById('auth-primary-btn').addEventListener('click', async () =
                 options: { data: { full_name: fullName } }
             });
             if (error) throw error;
-            alert("Register success (confirm your email).");
+            alert("Success, Please Login.");
         } else {
             const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
             if (error) throw error;
