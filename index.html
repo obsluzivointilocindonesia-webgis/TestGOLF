@@ -18,6 +18,48 @@
 </head>
 
 <body>
+    <div id="pdf-report-hidden" style="display: none; background: white; color: black; padding: 20px; font-family: Arial, sans-serif;">
+            <h2 style="text-align: center; color: #1a472a;">DAGO HERITAGE 1917 GOLF COURSE</h2>
+            <p id="pdf-date-multi" style="text-align: right; font-size: 12px;"></p>
+            <p>Group Round ID: <strong id="pdf-round-id"></strong></p>
+            <div id="pdf-tables-container"></div> </div>
+
+    <div id="user-info-panel" style="position: fixed; top: calc(60px + env(safe-area-inset-top)); left: 15px; width: 220px; z-index: 1011; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; border-bottom: 1px solid #444; backdrop-filter: blur(5px); color: white;">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+            <div>
+                <small style="color: #aaa; font-size: 0.5rem; display: block;">GOLFER</small>
+                <strong id="display-user-name" style="color: #00ff88; font-size: 0.9rem;">User</strong>
+                <span id="user-status-badge" style="font-size: 0.5rem; padding: 2px 5px; border-radius: 10px; margin-left: 5px;"></span>
+            </div>
+            <button id="logoutBtn" style="background: none; border: 1px solid #ff4444; color: #ff4444; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px;">Logout</button>
+        </div>
+        
+        <div style="border-top: 1px solid #444; padding-top: 8px;">
+            <small style="color: #00ff88; font-size: 0.5rem; display: block;">MULTIPLAYER MODE</small>
+            <div style="display: flex; gap: 5px; margin-top: 4px;">
+                <input type="text" id="roundIdInput" placeholder="Group ID" style="width: 70%; background: #222; border: 1px solid #444; color: white; font-size: 0.7rem; padding: 4px; border-radius: 4px;">
+                <button onclick="syncMultiplayer()" style="width: 30%; background: #27ae60; color: white; border: none; font-size: 0.6rem; border-radius: 4px; cursor: pointer;">Sync</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="detail-scorecard-container" class="horizontal-panel">
+        <button class="close-btn" onclick="toggleElement('detail-scorecard-container')">✕</button>
+        <h4 style="color: #00ff88; margin: 0; font-size: 14px;">Group Leaderboard: <span id="active-round-display">-</span></h4>
+        
+        <div class="table-responsive" style="margin-top: 10px;">
+            <table id="multiplayer-scorecard-table" style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                <thead id="multi-thead">
+                    </thead>
+                <tbody id="multi-tbody">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+
+
+
 <div id="pdf-report-hidden" style="display: none; background: white; color: black; padding: 20px; font-family: Arial, sans-serif;">
     <h2 style="text-align: center; color: #1a472a;">DAGO HERITAGE 1917 GOLF COURSE</h2>
     <p id="pdf-date" style="text-align: right; font-size: 12px;"></p>
@@ -48,16 +90,7 @@
     ← Back To Web
 </button>
 
-<div id="user-info-panel" style="position: fixed; top: calc(60px + env(safe-area-inset-top)); left: 15px; width: 200px; z-index: 1011; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.7); padding: 8px; border-radius: 8px; border-bottom: 1px solid #444; backdrop-filter: blur(5px);">
-    <div>
-        <small style="color: #aaa; font-size: 0.5rem; display: block;">GOLFER</small>
-        <strong id="display-user-name" style="color: #00ff88; font-size: 1rem;">User</strong>
-        <span id="user-status-badge" style="font-size: 0.5rem; padding: 2px 5px; border-radius: 10px; margin-left: 5px;"></span>
-    
-    <button id="logoutBtn" style="background: none; border: 1px solid #ff4444; color: #ff4444; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; cursor: pointer;">
-        Logout
-    </button></div>
-</div>
+
 
 <div id="auth-overlay" class="auth-box">
     <div class="auth-container">
@@ -85,7 +118,7 @@
 </div>
 
 <div class="ui-overlay">
-    <div id="hole-selector-container"><br><br><br><br><br>
+    <div id="hole-selector-container"><br><br><br><br><br><br><br><br>
             <select id="holeSelect" class="menu-button-ops">
             <option value="">Hole #</option>
             <option value="1">Hole 1: 484</option>
@@ -173,30 +206,6 @@
         </div>
     </div>
 
-    <div id="detail-scorecard-container" class="horizontal-panel">
-        <button class="close-btn" onclick="toggleElement('detail-scorecard-container')">✕</button>
-        
-        <h4 style="color: #00ff88; margin: 0; font-size: 14px;">TerraGOLF - DAGO HERITAGE 1917</h4>
-        <small id="pdf-date" style="color: #aaa;"></small>
-        
-        <div class="table-responsive" id="pdf-area">
-            <table id="detail-scorecard-table">
-                <thead>
-                    <tr id="table-header-row"></tr>
-                </thead>
-                <tbody>
-                    <tr id="table-strokes-row"></tr>
-                    <tr id="table-par-row"></tr>
-                </tbody>
-            </table>
-            
-            <div id="pdf-footer" style="margin-top: 10px; color: white; font-size: 12px; display: none;">
-                <span>Total Strokes: <strong id="total-strokes-pdf"></strong></span> | 
-                <span>Total PAR: <strong id="total-par-pdf"></strong></span> | 
-                <span>Diff: <strong id="total-diff-pdf"></strong></span>
-            </div>
-        </div>
-    </div>
     <button id="focusGpsBtn" style="position:fixed; bottom:20px; right:20px; width:50px; height:50px; border-radius:50%; background: white; border: 2px solid #00ff88; cursor: pointer; z-index: 1000;">
     📍
 

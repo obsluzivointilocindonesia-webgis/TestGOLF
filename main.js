@@ -6,7 +6,7 @@ const supabaseUrl = 'https://jltjrfhbreswadzlexzg.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsdGpyZmhicmVzd2FkemxleHpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjA4NjIsImV4cCI6MjA4NTY5Njg2Mn0.mS7QjBoWBS-xYZcAE--SaZHioJ_RqA57l_Bs5p6ppag';
 const sb = supabase.createClient(supabaseUrl, supabaseKey);
 
-Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxYjJiNmQzZC1hNTc0LTRhM2MtYjI2Yy1jZmQ2ZTZmNzY0YTMiLCJpZCI6Mzg0MjAyLCJpYXQiOjE3NzAzOTYwNzF9.YfLtke7hqAh66vLe_iaVxqCt8iB9PFTUk5GXSgVpq6c"
+Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzY2ZhMGQ3MS1mYzYwLTQ1NzktODY1Mi1lODRhZjRmMWE4Y2EiLCJpZCI6Mzg0MjAyLCJpYXQiOjE3Njk1Njg5ODJ9.5U2zZd_um-3-iYrpnfZg1Xt7eI7N_CPTCQHoa2xB0jQ"
 const viewer = new Cesium.Viewer('cesiumContainer', {
     terrain: Cesium.Terrain.fromWorldTerrain(),
 });
@@ -25,6 +25,8 @@ let currentContourDataSource = null; // Gunakan DataSource untuk GeoJSON
 let currentContourLayer = null;
 let userLocationMarker = null;
 let currentRoundId = localStorage.getItem('current_round_id');
+let currentSyncRoundId = '';
+let groupData = [];
 
 // Jika belum ada (baru pertama kali buka aplikasi), buat satu ID awal
 if (!currentRoundId) {
@@ -655,27 +657,31 @@ document.addEventListener('DOMContentLoaded', () => {
     updateSummaryUI();
 });
 //-----------------------------------------------
-document.getElementById('saveTrackBtn').addEventListener('click', async() => {
+document.getElementById('saveTrackBtn').addEventListener('click', async () => {
     const holeId = document.getElementById('holeSelect').value;
     if (!holeId) return alert("Select Hole # First");
-    if (activePoints.length < 2) return alert("At least 2 point to save track");
+    if (activePoints.length < 2) return alert("At least 2 points to save track");
 
-    const scoreNow = document.getElementById('score-panel');
-    if (scoreNow) {
-        scoreNow.style.display = 'block'; 
-    }
+    // --- LOGIKA MULTIPLAYER: AMBIL ROUND ID ---
+    // 1. Ambil dari input teks (Multiplayer)
+    const multiplayerId = document.getElementById('roundIdInput').value.trim();
+    // 2. Ambil dari LocalStorage (Sesi saat ini)
+    const localRoundId = localStorage.getItem('current_round_id');
+    
+    // Tentukan ID mana yang dipakai: Prioritas Input > LocalStorage > Generate Baru
+    const sessionRoundId = multiplayerId || localRoundId || ('session-' + Date.now());
+    
+    // Pastikan tersimpan di LocalStorage agar konsisten untuk hole berikutnya
+    localStorage.setItem('current_round_id', sessionRoundId);
+    // ------------------------------------------
 
-    const infoScore = document.getElementById('score-summary-container');
-    if (infoScore) {
-        infoScore.style.display = 'none'; 
-    }
-
-
-
+    // UI Feedback
+    if (document.getElementById('score-panel')) document.getElementById('score-panel').style.display = 'block';
+    if (document.getElementById('score-summary-container')) document.getElementById('score-summary-container').style.display = 'none';
     if (profileChart) profileChart.destroy();
     document.getElementById('chartContainer').style.display = 'none';
 
-    // 1. Ambil data PAR dari GeoJSON yang sudah ter-load
+    // 1. Ambil data PAR dari GeoJSON (Kode asli Anda)
     let holePar = 0;
     const dataSources = viewer.dataSources;
     for (let i = 0; i < dataSources.length; i++) {
@@ -687,19 +693,15 @@ document.getElementById('saveTrackBtn').addEventListener('click', async() => {
         }
     }
 
-    // 2. Hitung jumlah pukulan berdasarkan jumlah titik
-    // Rumus: Strokes = Jumlah Titik - 1 (Titik awal tidak dihitung sebagai pukulan)
+    // 2. Hitung Strokes & Konfirmasi
     const autoStrokes = activePoints.length - 1;
-
-    // 3. Konfirmasi ke user
-    const confirmStrokes = prompt(`Hole ${holeId} (PAR ${holePar})\nDetected ${autoStrokes} strokes.\n\nIs this number correct? (If wrong, enter the correct numver!):`, autoStrokes);
-    
-    if (confirmStrokes === null) return; // Batal simpan jika tekan Cancel
+    const confirmStrokes = prompt(`Hole ${holeId} (PAR ${holePar})\nDetected ${autoStrokes} strokes.\n\nIs this number correct?`, autoStrokes);
+    if (confirmStrokes === null) return; 
 
     const finalStrokes = parseInt(confirmStrokes);
     const scoreTerm = getGolfTerm(finalStrokes, holePar);
 
-    // 4. Siapkan data titik koordinat
+    // 3. Koordinat Titik
     const trackPoints = activePoints.map(p => {
         const carto = Cesium.Cartographic.fromCartesian(p.position);
         return {
@@ -709,10 +711,10 @@ document.getElementById('saveTrackBtn').addEventListener('click', async() => {
         };
     });
 
-    // 5. Simpan ke LocalStorage
+    // 4. Buat Entry Data
     const newEntry = {
         id: Date.now(),
-        roundId: localStorage.getItem('current_round_id'),
+        roundId: sessionRoundId,
         date: new Date().toLocaleString('id-ID'),
         hole: holeId,
         par: holePar,
@@ -721,43 +723,46 @@ document.getElementById('saveTrackBtn').addEventListener('click', async() => {
         points: trackPoints
     };
 
+    // Simpan ke LocalStorage (Cadangan Offline)
     let allTracks = JSON.parse(localStorage.getItem('golf_tracks') || '[]');
     allTracks.push(newEntry);
     localStorage.setItem('golf_tracks', JSON.stringify(allTracks));
 
-    //Simpan ke SUPABASE
-    // --- START: MODIFIKASI SUPABASE SYNC ---
-    // Pastikan user sudah login sebelum kirim ke cloud
+    // 5. SIMPAN KE SUPABASE (MODIFIKASI SYNC)
     if (currentUser) {
         try {
             const { error } = await sb
                 .from('tracks')
                 .insert([{
                     user_id: currentUser.id,
-                    round_id: String(newEntry.roundId), // Supabase suka string untuk ID
+                    round_id: String(sessionRoundId), // INI KUNCI MULTIPLAYER
                     hole_number: parseInt(newEntry.hole),
                     par: newEntry.par,
                     strokes: newEntry.strokes,
                     score_term: newEntry.scoreTerm,
-                    points: newEntry.points // Kolom JSONB di Supabase
+                    points: newEntry.points 
                 }]);
 
             if (error) throw error;
-            console.log("Scnchronous to Supabase!");
+            console.log("Synchronized to Supabase with Round ID:", sessionRoundId);
+            
+            // Panggil refresh tabel multiplayer agar pemain lain muncul
+            if (typeof fetchGroupScores === "function") {
+                fetchGroupScores(); 
+            }
         } catch (err) {
             console.error("Failed to Cloud:", err.message);
-            // Tetap lanjut karena sudah tersimpan di LocalStorage
         }
     }
-    // --- END: MODIFIKASI SUPABASE SYNC ---
 
-
-    // Update UI Skor
+    // Finalisasi UI
     document.getElementById('current-score-text').textContent = `${finalStrokes} Strokes (${scoreTerm})`;
-    updateSummaryUI();
-    alert(`Save to Cloud!`)
-    clearAll()
+    if (typeof updateSummaryUI === "function") updateSummaryUI();
+    
+    alert(`Saved to Cloud! (Round: ${sessionRoundId})`);
+    clearAll(); // Pastikan fungsi clearAll() Anda sudah ada untuk reset titik di peta
 });
+
 //new ronde
 // A. Fungsi untuk memulai ronde baru
 document.getElementById('newGameBtn').addEventListener('click', () => {
@@ -1069,6 +1074,14 @@ document.getElementById('exportPdfBtn').addEventListener('click', function() {
     
     // Tampilkan sebentar agar bisa ditangkap library
     element.style.display = "block"; 
+
+    if (!currentSyncRoundId) {
+        // Jika tidak sedang mode multiplayer, gunakan fungsi lama Anda
+        // Tapi jika ada, gunakan mode group
+        exportGroupPdf();
+    } else {
+        exportGroupPdf();
+    }
 
     const opt = {
         margin:       0.5,
@@ -1791,4 +1804,108 @@ async function activatePremium(userId) {
       .eq('id', userId);
       
     if (!error) alert("Selamat! TerraGOLF Anda sekarang Premium.");
+}
+
+//MULTIPLE PLAYER
+async function syncMultiplayer() {
+    const inputId = document.getElementById('roundIdInput').value;
+    if (!inputId) {
+        Swal.fire('Info', 'Masukkan Round ID Grup Anda', 'info');
+        return;
+    }
+
+    currentSyncRoundId = inputId;
+    document.getElementById('active-round-display').innerText = inputId;
+
+    // 1. Ambil data awal
+    fetchGroupScores();
+
+    // 2. Aktifkan Real-time Listener Supabase
+    supabase
+        .channel('golf-group')
+        .on('postgres_changes', { 
+            event: '*', 
+            schema: 'public', 
+            table: 'tracks',
+            filter: `round_id=eq.${currentSyncRoundId}` 
+        }, (payload) => {
+            console.log('Real-time Update:', payload);
+            fetchGroupScores(); // Refresh data setiap ada perubahan di grup
+        })
+        .subscribe();
+
+    Swal.fire({
+        icon: 'success',
+        title: 'Sync Berhasil',
+        text: `Anda sekarang dalam grup: ${inputId}`,
+        timer: 1500,
+        showConfirmButton: false
+    });
+}
+
+async function fetchGroupScores() {
+    const { data, error } = await supabase
+        .from('tracks')
+        .select(`*, profiles(full_name)`)
+        .eq('round_id', currentSyncRoundId)
+        .order('hole_number', { ascending: true });
+
+    if (error) return console.error(error);
+    groupData = data;
+    renderMultiplayerTable();
+}
+
+function renderMultiplayerTable() {
+    const thead = document.getElementById('multi-thead');
+    const tbody = document.getElementById('multi-tbody');
+    
+    // Ambil daftar nama unik pemain di grup
+    const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Anonim'))];
+
+    // Buat Header
+    let headerHtml = `<tr style="background: #1a472a; color: white;"><th>Hole</th><th>PAR</th>`;
+    players.forEach(p => {
+        headerHtml += `<th>${p.split(' ')[0]}</th>`; // Ambil nama depan saja biar muat
+    });
+    headerHtml += `</tr>`;
+    thead.innerHTML = headerHtml;
+
+    // Buat Baris 1-18
+    let bodyHtml = '';
+    for (let h = 1; h <= 18; h++) {
+        let parValue = groupData.find(s => s.hole_number === h)?.par || '-';
+        bodyHtml += `<tr><td>${h}</td><td>${parValue}</td>`;
+        
+        players.forEach(p => {
+            const score = groupData.find(s => s.hole_number === h && s.profiles?.full_name === p);
+            bodyHtml += `<td>${score ? score.strokes : '-'}</td>`;
+        });
+        bodyHtml += `</tr>`;
+    }
+    tbody.innerHTML = bodyHtml;
+}
+
+// EKSPORT GRUP
+function exportGroupPdf() {
+    const element = document.getElementById('pdf-report-hidden');
+    element.style.display = 'block';
+    
+    document.getElementById('pdf-round-id').innerText = currentSyncRoundId || 'Single Round';
+    document.getElementById('pdf-date-multi').innerText = new Date().toLocaleDateString();
+
+    // Re-use tabel dari leaderboard multiplayer ke dalam PDF
+    const container = document.getElementById('pdf-tables-container');
+    container.innerHTML = document.getElementById('detail-scorecard-container').innerHTML;
+
+    const opt = {
+        margin: 10,
+        filename: `TerraGOLF_Report_${currentSyncRoundId}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+        element.style.display = 'none';
+    });
 }
