@@ -1057,42 +1057,70 @@ function prepareScorecardData() {
 
 // 1. Tombol Lihat Detail (Layar)
 document.getElementById('viewDetailBtn').addEventListener('click', () => {
-    if (prepareScorecardData()) {
-        document.getElementById('pdf-footer').style.display = 'none'; // Sembunyikan footer di layar
-        document.getElementById('detail-scorecard-container').style.display = 'block';
+    // Pastikan container detail muncul
+    const container = document.getElementById('detail-scorecard-container');
+    container.style.display = 'block';
+
+    // Jika tidak ada data grup, coba fetch ulang berdasarkan round_id yang aktif
+    if (groupData.length === 0 && currentSyncRoundId) {
+        fetchGroupScores();
     } else {
-        alert("Belum ada data skor.");
+        renderMultiplayerTable(); // Pastikan tabel ter-render
     }
 });
 
 // 2. Tombol Export PDF
-document.getElementById('exportPdfBtn').addEventListener('click', function() {
-    const success = prepareHiddenPdfTable();
-    if (!success) return alert("Tidak ada data untuk PDF");
-
+document.getElementById('exportPdfBtn').addEventListener('click', async () => {
     const element = document.getElementById('pdf-report-hidden');
-    
-    // Tampilkan sebentar agar bisa ditangkap library
-    element.style.display = "block"; 
+    element.style.display = 'block'; // Tampilkan sebentar untuk render
 
-    if (!currentSyncRoundId) {
-        // Jika tidak sedang mode multiplayer, gunakan fungsi lama Anda
-        // Tapi jika ada, gunakan mode group
-        exportGroupPdf();
-    } else {
-        exportGroupPdf();
+    // Ambil daftar pemain unik
+    const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Anonim'))];
+    
+    // Header PDF
+    document.getElementById('pdf-date-multi').innerText = new Date().toLocaleDateString('id-ID');
+    document.getElementById('pdf-round-id').innerText = currentSyncRoundId;
+
+    // Bangun Tabel untuk PDF
+    let tableContent = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+            <thead>
+                <tr style="background: #1a472a; color: white;">
+                    <th style="border: 1px solid #ddd; padding: 5px;">Hole</th>
+                    <th style="border: 1px solid #ddd; padding: 5px;">PAR</th>
+                    ${players.map(p => `<th style="border: 1px solid #ddd; padding: 5px;">${p}</th>`).join('')}
+                </tr>
+            </thead>
+            <tbody>`;
+
+    for (let h = 1; h <= 18; h++) {
+        let parHole = groupData.find(s => s.hole_number === h)?.par || '-';
+        tableContent += `<tr>
+            <td style="border: 1px solid #ddd; padding: 5px; text-align: center;">${h}</td>
+            <td style="border: 1px solid #ddd; padding: 5px; text-align: center;">${parHole}</td>`;
+        
+        players.forEach(p => {
+            const score = groupData.find(s => s.hole_number === h && (s.profiles?.full_name === p));
+            tableContent += `<td style="border: 1px solid #ddd; padding: 5px; text-align: center;">${score ? score.strokes : '-'}</td>`;
+        });
+        tableContent += `</tr>`;
     }
 
+    tableContent += `</tbody></table>`;
+    document.getElementById('pdf-tables-container').innerHTML = tableContent;
+
+    // Opsi PDF
     const opt = {
-        margin:       0.5,
-        filename:     `TerraGOLF-DagoHeritage-${Date.now()}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, logging: false, useCORS: true },
-        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        margin: 10,
+        filename: `Scorecard_Group_${currentSyncRoundId}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
     };
 
+    // Jalankan ekspor
     html2pdf().set(opt).from(element).save().then(() => {
-        element.style.display = "none"; // Sembunyikan lagi
+        element.style.display = 'none'; // Sembunyikan kembali
     });
 });
 
@@ -1609,62 +1637,76 @@ function setNavButtonsDisplay(status) {
 // 1. Fungsi Utama Cetak (Pastikan nama tabel sesuai database: 'trackers')
 async function printRoundFromSupabase(targetRoundId) {
     try {
-        console.log("Fetching details for Round:", targetRoundId);
+        console.log("Fetching Group Details for Round:", targetRoundId);
         
+        // Ambil data semua pemain di round tersebut
         const { data: scores, error } = await sb
             .from('tracks')
-            .select('*')
+            .select('*, profiles(full_name)')
             .eq('round_id', targetRoundId)
-            .order('hole_number', { ascending: true }); // Pastikan kolomnya 'hole_number'
+            .order('hole_number', { ascending: true });
 
         if (error) throw error;
-        if (!scores || scores.length === 0) return alert("Data detail tidak ditemukan.");
+        if (!scores || scores.length === 0) return alert("Data tidak ditemukan.");
 
+        // Ambil daftar pemain unik dalam grup ini
+        const players = [...new Set(scores.map(s => s.profiles?.full_name || 'Anonim'))];
+
+        // 1. Siapkan Header Tabel PDF (Dinamis sesuai jumlah pemain)
+        const thead = document.querySelector('#pdf-report-hidden thead');
+        thead.innerHTML = `
+            <tr style="background: #1a472a; color: white;">
+                <th style="border: 1px solid #ddd; padding: 8px;">Hole</th>
+                <th style="border: 1px solid #ddd; padding: 8px;">PAR</th>
+                ${players.map(p => `<th style="border: 1px solid #ddd; padding: 8px;">${p}</th>`).join('')}
+            </tr>`;
+
+        // 2. Isi Body Tabel
         const tbody = document.getElementById('table-body-detail-pdf');
         tbody.innerHTML = "";
-        let tStrokes = 0, tPar = 0;
 
-        scores.forEach(track => {
-            // Sesuaikan nama kolom: hole_number atau hole? skor_term atau score_term?
-            tbody.innerHTML += `
-                <tr>
-                    <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${track.hole_number || track.hole}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${track.par}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${track.strokes}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${track.skor_term || track.score_term || '-'}</td>
-                </tr>`;
-            tStrokes += parseInt(track.strokes || 0);
-            tPar += parseInt(track.par || 0);
-        });
+        for (let h = 1; h <= 18; h++) {
+            let holeData = scores.find(s => s.hole_number === h);
+            let parVal = holeData ? holeData.par : '-';
+            
+            let rowHtml = `<tr>
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${h}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${parVal}</td>`;
+            
+            players.forEach(p => {
+                const pScore = scores.find(s => s.hole_number === h && s.profiles?.full_name === p);
+                rowHtml += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${pScore ? pScore.strokes : '-'}</td>`;
+            });
 
-        // Update UI Template PDF
-        document.getElementById('total-par-pdf').textContent = tPar;
-        document.getElementById('total-strokes-pdf').textContent = tStrokes;
-        document.getElementById('total-diff-pdf').textContent = (tStrokes - tPar > 0 ? "+" : "") + (tStrokes - tPar);
-        document.getElementById('pdf-player-name').textContent = document.getElementById('display-user-name').textContent;
-        
-        const dateStr = new Date(parseInt(targetRoundId)).toLocaleDateString('id-ID');
-        document.getElementById('pdf-date').textContent = "Ronde: " + dateStr;
+            rowHtml += `</tr>`;
+            tbody.innerHTML += rowHtml;
+        }
 
-        // Proses Cetak
+        // 3. Update Identitas di PDF
+        document.getElementById('pdf-round-id').textContent = targetRoundId;
+        document.getElementById('pdf-player-name').textContent = players.join(', ');
+
+        // 4. Jalankan Cetak PDF
         const element = document.getElementById('pdf-report-hidden');
         element.style.display = "block";
         
-        html2pdf().from(element).set({
-            margin: 0.5,
-            filename: `Scorecard_${targetRoundId}.pdf`,
+        const opt = {
+            margin: 0.3,
+            filename: `Scorecard_Group_${targetRoundId}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2 },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-        }).save().then(() => {
+            jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } // Landscape agar kolom muat
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => {
             element.style.display = "none";
         });
 
     } catch (err) {
+        console.error(err);
         alert("Gagal cetak: " + err.message);
     }
 }
-
-// WAJIB: Ekspos ke Global agar onclick di HTML bisa melihat fungsi ini
 window.printRoundFromSupabase = printRoundFromSupabase;
 
 // 2. Fungsi Menampilkan Daftar Ronde (Gunakan Modal, Hindari Prompt)
@@ -1727,39 +1769,60 @@ async function showHistoryRounds() {
 //document.getElementById('btnHistoryRounds').addEventListener('click', showHistoryRounds);
 
 document.getElementById('btnHistoryRounds').addEventListener('click', async () => {
-    // 1. Ambil User ID secara aman
-    const { data: { user } } = await sb.auth.getUser(); // Pastikan pakai 'sb' sesuai skripmu
+    const { data: { user } } = await sb.auth.getUser();
     
     if (!user) {
         alert("Please login first.");
         return;
     }
-    const infouser = document.getElementById('user-info-panel');
-    if (infouser) {
-        infouser.style.display = 'none'; 
+
+    // Sembunyikan panel info agar tidak menghalangi
+    if (document.getElementById('user-info-panel')) {
+        document.getElementById('user-info-panel').style.display = 'none'; 
     }
 
-    // 2. Ambil semua tracks untuk user ini
+    // Tampilkan Modal
+    toggleElement('history-modal');
+    const listContainer = document.getElementById('history-list-container');
+    listContainer.innerHTML = "<p style='color: #00ff88;'>Loading Rounds...</p>";
+
+    // Ambil data round unik dari Supabase
     const { data: cloudTracks, error } = await sb
         .from('tracks')
-        .select('round_id, created_at, hole_number')
+        .select('round_id, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
     if (error || !cloudTracks.length) {
-        alert("No history found in cloud.");
+        listContainer.innerHTML = "<p style='color:#ccc;'>No history found.</p>";
         return;
     }
 
-    // 3. Kelompokkan berdasarkan round_id (karena 1 round punya banyak hole)
-    const roundsMap = new Map();
-    cloudTracks.forEach(t => {
-        if (!roundsMap.has(t.round_id)) {
-            roundsMap.set(t.round_id, t.created_at);
-        }
-    });
+    // Kelompokkan agar round_id tidak duplikat
+    const uniqueRounds = [...new Map(cloudTracks.map(item => [item.round_id, item])).values()];
 
-    
+    listContainer.innerHTML = "";
+    uniqueRounds.forEach(round => {
+        // Coba parsing ID jika itu timestamp, jika bukan gunakan created_at
+        const dateObj = isNaN(round.round_id) ? new Date(round.created_at) : new Date(parseInt(round.round_id));
+        const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+        const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+        const item = document.createElement('div');
+        item.style = "background: rgba(255,255,255,0.05); padding: 12px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;";
+        
+        item.innerHTML = `
+            <div>
+                <div style="font-size: 0.9rem; font-weight: bold; color: white;">${round.round_id}</div>
+                <div style="font-size: 0.7rem; color: #888;">${dateStr} - ${timeStr} WIB</div>
+            </div>
+            <button onclick="printRoundFromSupabase('${round.round_id}')" 
+                    style="background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">
+                PRINT
+            </button>
+        `;
+        listContainer.appendChild(item);
+    });
 });
 
 // Menangani klik pada tombol cetak di dalam modal (Event Delegation)
