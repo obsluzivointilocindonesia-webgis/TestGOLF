@@ -159,6 +159,10 @@ body, html, #cesiumContainer {
         font-size: 0.7rem;
         padding: 4px;
     }
+
+    #detail-scorecard-container {
+        top: 20% !important; /* Turunkan posisi */
+    }
 }
 
 #toolbar-info {

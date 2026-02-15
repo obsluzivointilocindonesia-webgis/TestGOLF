@@ -26,7 +26,7 @@ let currentContourLayer = null;
 let userLocationMarker = null;
 let currentRoundId = localStorage.getItem('current_round_id');
 let groupData = []; // Variabel penampung data semua pemain
-let currentSyncRoundId = ''; // Menyimpan ID Grup aktif
+let currentSyncRoundId = ""; // Menyimpan ID Grup aktif
 
 // Jika belum ada (baru pertama kali buka aplikasi), buat satu ID awal
 if (!currentRoundId) {
@@ -1869,30 +1869,14 @@ async function syncMultiplayer() {
     const inputId = document.getElementById('roundIdInput').value;
     if (!inputId) return Swal.fire('Info', 'Masukkan Round ID', 'info');
 
-    currentSyncRoundId = inputId;
+    // 1. ISI VARIABEL GLOBAL INI TERLEBIH DAHULU
+    currentSyncRoundId = inputId; 
     localStorage.setItem('active_round_id', inputId);
 
-    // Ambil data awal
+    // 2. Baru panggil fungsi tarik data
     await fetchGroupScores();
 
-    // Gunakan 'sb' untuk Realtime
-    try {
-        sb.channel('golf-group-realtime')
-            .on('postgres_changes', { 
-                event: '*', 
-                schema: 'public', 
-                table: 'tracks',
-                filter: `round_id=eq.${inputId}` 
-            }, (payload) => {
-                console.log('Update real-time diterima!');
-                fetchGroupScores(); 
-            })
-            .subscribe();
-    } catch (e) {
-        console.warn("Realtime error:", e.message);
-    }
-
-    Swal.fire({ icon: 'success', title: 'Synced!', text: `Grup: ${inputId}`, timer: 1500 });
+    Swal.fire({ icon: 'success', title: 'Synced!', text: `Round: ${currentSyncRoundId}`, timer: 1500 });
 }
 
 async function fetchGroupScores() {
@@ -1941,59 +1925,46 @@ async function fetchGroupScores() {
 }
 
 function renderMultiplayerTable() {
-    const thead = document.getElementById('multi-thead');
     const tbody = document.getElementById('multi-tbody');
-    const titleElem = document.querySelector('.detail-scorecard-content h3'); // Selektor judul panel
+    const titleHeader = document.querySelector('#detail-scorecard-container h3');
     
-    if (!tbody || !groupData || groupData.length === 0) return;
-
-    // 1. Update Judul dengan Nama Round
-    if (titleElem) {
-        titleElem.innerHTML = `Group Leaderboard: <span style="color: #00ff88;">${currentSyncRoundId || '-'}</span>`;
+    // Tampilkan Nama Round di Judul Panel
+    if (titleHeader) {
+        titleHeader.innerHTML = `Group Leaderboard: <span style="color: #00ff88;">${currentSyncRoundId}</span>`;
     }
+
+    if (!tbody || !groupData.length) return;
 
     const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Anonim'))];
     let playerTotals = players.map(() => 0);
+    let rowsHtml = "";
 
-    // 2. Render Header
-    let headerHtml = `<tr style="background: #1a472a; color: white;">
-                        <th style="padding: 8px; border: 1px solid #444;">Hole</th>
-                        <th style="padding: 8px; border: 1px solid #444;">PAR</th>`;
-    players.forEach(p => {
-        headerHtml += `<th style="padding: 8px; border: 1px solid #444;">${p.split(' ')[0]}</th>`;
-    });
-    headerHtml += `</tr>`;
-    thead.innerHTML = headerHtml;
-
-    // 3. Render Body
-    let bodyHtml = '';
     for (let h = 1; h <= 18; h++) {
         const sample = groupData.find(s => s.hole_number === h);
         const parVal = sample ? sample.par : '-';
         
-        bodyHtml += `<tr style="border-bottom: 1px solid #333;">
-                        <td style="padding: 6px; text-align: center; color: #aaa;">${h}</td>
-                        <td style="padding: 6px; text-align: center; color: white;">${parVal}</td>`; // PAR jadi PUTIH
+        rowsHtml += `<tr style="border-bottom: 1px solid #333;">
+            <td style="padding: 8px; text-align: center; color: #aaa;">${h}</td>
+            <td style="padding: 8px; text-align: center; color: white;">${parVal}</td>`; // PAR JADI PUTIH
         
-        players.forEach((player, idx) => {
-            const scoreEntry = groupData.find(s => s.hole_number === h && s.profiles?.full_name === player);
-            const strokes = scoreEntry ? parseInt(scoreEntry.strokes) : 0;
-            playerTotals[idx] += strokes;
-            bodyHtml += `<td style="padding: 6px; text-align: center; color: #00ff88;">${strokes || '-'}</td>`;
+        players.forEach((p, idx) => {
+            const s = groupData.find(score => score.hole_number === h && score.profiles.full_name === p);
+            const score = s ? parseInt(s.strokes) : 0;
+            playerTotals[idx] += score;
+            rowsHtml += `<td style="padding: 8px; text-align: center; color: #00ff88;">${score || '-'}</td>`;
         });
-        bodyHtml += `</tr>`;
+        rowsHtml += `</tr>`;
     }
 
-    // 4. Baris TOTAL
-    let footerHtml = `<tr style="background: rgba(0,255,136,0.1); font-weight: bold; border-top: 2px solid #00ff88;">
-                        <td colspan="2" style="padding: 10px; text-align: right; color: #fff;">TOTAL</td>`;
-    playerTotals.forEach(total => {
-        footerHtml += `<td style="padding: 10px; text-align: center; color: #00ff88;">${total}</td>`;
-    });
-    footerHtml += `</tr>`;
+    // Baris Total
+    rowsHtml += `<tr style="background: rgba(0,255,136,0.1); font-weight: bold;">
+        <td colspan="2" style="padding: 10px; text-align: right; color: #fff;">TOTAL</td>
+        ${playerTotals.map(t => `<td style="padding: 10px; text-align: center; color: #00ff88;">${t}</td>`).join('')}
+    </tr>`;
 
-    tbody.innerHTML = bodyHtml + footerHtml;
+    tbody.innerHTML = rowsHtml;
 }
+
 
 // EKSPORT GRUP
 function exportGroupPdf() {
