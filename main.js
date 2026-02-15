@@ -1056,114 +1056,103 @@ function prepareScorecardData() {
 }
 
 // 1. Tombol Lihat Detail (Layar)
-document.getElementById('viewDetailBtn').addEventListener('click', () => {
-    // Pastikan container detail muncul
-    const container = document.getElementById('detail-scorecard-container');
-    container.style.display = 'block';
-
-    // Jika tidak ada data grup, coba fetch ulang berdasarkan round_id yang aktif
-    if (groupData.length === 0 && currentSyncRoundId) {
-        fetchGroupScores();
-    } else {
-        renderMultiplayerTable(); // Pastikan tabel ter-render
-    }
+// Saat tombol Detail diklik
+document.getElementById('viewDetailBtn').addEventListener('click', async () => {
+    // Pastikan kita tarik data terbaru dari Supabase dulu
+    await fetchGroupScores(); 
+    
+    // Tampilkan panel detail
+    toggleElement('detail-scorecard-container');
+    
+    // Render tabel di layar (Leaderboard hitam)
+    renderMultiplayerTable();
 });
 
 // 2. Tombol Export PDF
+// Saat tombol PDF diklik
 document.getElementById('exportPdfBtn').addEventListener('click', async () => {
-    const element = document.getElementById('pdf-report-hidden');
-    element.style.display = 'block'; // Tampilkan sebentar untuk render
+    // 1. Pastikan data groupData sudah terisi
+    if (groupData.length === 0) await fetchGroupScores();
 
-    // Ambil daftar pemain unik
-    const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Anonim'))];
+    // 2. Siapkan tabel hidden untuk PDF
+    const ready = prepareHiddenPdfTable();
     
-    // Header PDF
-    document.getElementById('pdf-date-multi').innerText = new Date().toLocaleDateString('id-ID');
-    document.getElementById('pdf-round-id').innerText = currentSyncRoundId;
+    if (ready) {
+        const element = document.getElementById('pdf-report-hidden');
+        element.style.display = "block"; // Munculkan agar bisa dibaca html2pdf
 
-    // Bangun Tabel untuk PDF
-    let tableContent = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
-            <thead>
-                <tr style="background: #1a472a; color: white;">
-                    <th style="border: 1px solid #ddd; padding: 5px;">Hole</th>
-                    <th style="border: 1px solid #ddd; padding: 5px;">PAR</th>
-                    ${players.map(p => `<th style="border: 1px solid #ddd; padding: 5px;">${p}</th>`).join('')}
-                </tr>
-            </thead>
-            <tbody>`;
+        const opt = {
+            margin: 0.5,
+            filename: `Golf_Group_Scorecard.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } // Landscape agar muat banyak pemain
+        };
 
-    for (let h = 1; h <= 18; h++) {
-        let parHole = groupData.find(s => s.hole_number === h)?.par || '-';
-        tableContent += `<tr>
-            <td style="border: 1px solid #ddd; padding: 5px; text-align: center;">${h}</td>
-            <td style="border: 1px solid #ddd; padding: 5px; text-align: center;">${parHole}</td>`;
-        
-        players.forEach(p => {
-            const score = groupData.find(s => s.hole_number === h && (s.profiles?.full_name === p));
-            tableContent += `<td style="border: 1px solid #ddd; padding: 5px; text-align: center;">${score ? score.strokes : '-'}</td>`;
+        html2pdf().set(opt).from(element).save().then(() => {
+            element.style.display = "none";
         });
-        tableContent += `</tr>`;
+    } else {
+        alert("Data tidak tersedia untuk dicetak.");
     }
-
-    tableContent += `</tbody></table>`;
-    document.getElementById('pdf-tables-container').innerHTML = tableContent;
-
-    // Opsi PDF
-    const opt = {
-        margin: 10,
-        filename: `Scorecard_Group_${currentSyncRoundId}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-    };
-
-    // Jalankan ekspor
-    html2pdf().set(opt).from(element).save().then(() => {
-        element.style.display = 'none'; // Sembunyikan kembali
-    });
 });
 
 // FUNGSI TABEL VERTIKAL SEMBUNYI
 function prepareHiddenPdfTable() {
-    const allTracks = JSON.parse(localStorage.getItem('golf_tracks') || '[]');
-    
-    // AMBIL NAMA LANGSUNG DARI DASHBOARD (ID: display-user-name)
-    const currentUserName = document.getElementById('display-user-name').textContent;
+    // 1. Ambil data dari variabel global groupData (hasil fetch dari Supabase)
+    // Jika groupData kosong, coba ambil dari localStorage sebagai cadangan
+    if (!groupData || groupData.length === 0) {
+        console.warn("Data grup kosong, mencoba memuat data lokal...");
+        // Jika ingin fallback ke single player jika cloud kosong:
+        // const allTracks = JSON.parse(localStorage.getItem('golf_tracks') || '[]');
+        return false; 
+    }
     
     const tbody = document.getElementById('table-body-detail-pdf');
-    if (!tbody) return false;
+    const thead = document.querySelector('#pdf-report-hidden thead');
+    if (!tbody || !thead) return false;
 
+    // 2. Ambil daftar pemain unik dari grup
+    const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'User'))];
+
+    // 3. Update Header PDF agar kolom sesuai jumlah pemain
+    thead.innerHTML = `
+        <tr style="background: #1a472a; color: white;">
+            <th style="border: 1px solid #ddd; padding: 8px;">Hole</th>
+            <th style="border: 1px solid #ddd; padding: 8px;">PAR</th>
+            ${players.map(p => `<th style="border: 1px solid #ddd; padding: 8px;">${p.split(' ')[0]}</th>`).join('')}
+        </tr>
+    `;
+
+    // 4. Reset isi Body
     tbody.innerHTML = "";
-    let tStrokes = 0;
-    let tPar = 0;
+    let totalPar = 0;
 
-    // Urutkan data berdasarkan nomor Hole
-    allTracks.sort((a, b) => parseInt(a.hole) - parseInt(b.hole));
+    // 5. Loop Hole 1 sampai 18
+    for (let h = 1; h <= 18; h++) {
+        const sample = groupData.find(s => s.hole_number === h);
+        const parVal = sample ? sample.par : 0;
+        if (parVal > 0) totalPar += parVal;
 
-    allTracks.forEach(track => {
-        const row = `
-            <tr>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${track.hole}</td>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${track.par}</td>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${track.strokes}</td>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${track.scoreTerm}</td>
-            </tr>
-        `;
+        let row = `<tr>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${h}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${parVal || '-'}</td>`;
+        
+        // Tambahkan kolom skor untuk setiap pemain
+        players.forEach(p => {
+            const scoreEntry = groupData.find(s => s.hole_number === h && s.profiles?.full_name === p);
+            row += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${scoreEntry ? scoreEntry.strokes : '-'}</td>`;
+        });
+
+        row += `</tr>`;
         tbody.innerHTML += row;
-        tStrokes += track.strokes;
-        tPar += track.par;
-    });
+    }
 
-    // Update data di template PDF
-    document.getElementById('total-par-pdf').textContent = tPar;
-    document.getElementById('total-strokes-pdf').textContent = tStrokes;
-    document.getElementById('total-diff-pdf').textContent = (tStrokes - tPar > 0 ? "+" : "") + (tStrokes - tPar);
+    // 6. Update Metadata PDF
+    document.getElementById('pdf-round-id').textContent = currentSyncRoundId || "Sesi Pribadi";
+    document.getElementById('pdf-player-name').textContent = players.join(', ');
     document.getElementById('pdf-date').textContent = "Tanggal: " + new Date().toLocaleDateString('id-ID');
     
-    // MASUKKAN NAMA KE PDF
-    document.getElementById('pdf-player-name').textContent = currentUserName;
-
     return true;
 }
 
