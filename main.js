@@ -1934,46 +1934,68 @@ async function fetchGroupScores() {
 
 
 function renderMultiplayerTable() {
+    // Penyesuaian Selector berdasarkan HTML Anda
+    const thead = document.getElementById('multi-thead');
     const tbody = document.getElementById('multi-tbody');
-    const titleHeader = document.querySelector('#detail-scorecard-container h3');
+    const roundDisplay = document.getElementById('active-round-display');
     
-    // Tampilkan Nama Round di Judul Panel
-    if (titleHeader) {
-        titleHeader.innerHTML = `Group Leaderboard: <span style="color: #00ff88;">${currentSyncRoundId}</span>`;
+    // 1. Tampilkan Nama Round di Header
+    if (roundDisplay) {
+        roundDisplay.textContent = currentSyncRoundId || "-";
     }
 
-    if (!tbody || !groupData.length) return;
+    if (!tbody || !groupData || groupData.length === 0) {
+        if(tbody) tbody.innerHTML = "<tr><td colspan='4' style='color:white; padding:10px;'>Menunggu data skor...</td></tr>";
+        return;
+    }
 
+    // 2. Ambil daftar pemain unik
     const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Anonim'))];
     let playerTotals = players.map(() => 0);
-    let rowsHtml = "";
 
+    // 3. Render Header (Nama User)
+    let headerHtml = `<tr style="background: #1a472a; color: white;">
+                        <th style="padding: 8px; border: 1px solid #444;">Hole</th>
+                        <th style="padding: 8px; border: 1px solid #444;">PAR</th>`;
+    players.forEach(p => {
+        // Menggunakan nama dari profiles
+        headerHtml += `<th style="padding: 8px; border: 1px solid #444; color: #00ff88;">${p}</th>`;
+    });
+    headerHtml += `</tr>`;
+    thead.innerHTML = headerHtml;
+
+    // 4. Render Body (Data Hole 1-18)
+    let bodyHtml = '';
     for (let h = 1; h <= 18; h++) {
         const sample = groupData.find(s => s.hole_number === h);
         const parVal = sample ? sample.par : '-';
         
-        rowsHtml += `<tr style="border-bottom: 1px solid #333;">
-            <td style="padding: 8px; text-align: center; color: #aaa;">${h}</td>
-            <td style="padding: 8px; text-align: center; color: white;">${parVal}</td>`; // PAR JADI PUTIH
+        bodyHtml += `<tr style="border-bottom: 1px solid #333;">
+                        <td style="padding: 6px; text-align: center; color: #aaa;">${h}</td>
+                        <td style="padding: 6px; text-align: center; color: white;">${parVal}</td>`; // PAR JADI PUTIH
         
-        players.forEach((p, idx) => {
-            const s = groupData.find(score => score.hole_number === h && score.profiles.full_name === p);
-            const score = s ? parseInt(s.strokes) : 0;
-            playerTotals[idx] += score;
-            rowsHtml += `<td style="padding: 8px; text-align: center; color: #00ff88;">${score || '-'}</td>`;
+        players.forEach((player, idx) => {
+            const scoreEntry = groupData.find(s => s.hole_number === h && s.profiles?.full_name === player);
+            const strokes = scoreEntry ? parseInt(scoreEntry.strokes) : 0;
+            playerTotals[idx] += strokes;
+            
+            bodyHtml += `<td style="padding: 6px; text-align: center; color: #00ff88; font-weight: bold;">
+                            ${strokes > 0 ? strokes : '-'}
+                         </td>`;
         });
-        rowsHtml += `</tr>`;
+        bodyHtml += `</tr>`;
     }
 
-    // Baris Total
-    rowsHtml += `<tr style="background: rgba(0,255,136,0.1); font-weight: bold;">
-        <td colspan="2" style="padding: 10px; text-align: right; color: #fff;">TOTAL</td>
-        ${playerTotals.map(t => `<td style="padding: 10px; text-align: center; color: #00ff88;">${t}</td>`).join('')}
-    </tr>`;
+    // 5. Tambahkan Baris TOTAL
+    let footerHtml = `<tr style="background: rgba(0,255,136,0.1); font-weight: bold; border-top: 2px solid #00ff88;">
+                        <td colspan="2" style="padding: 10px; text-align: right; color: #fff;">TOTAL</td>`;
+    playerTotals.forEach(total => {
+        footerHtml += `<td style="padding: 10px; text-align: center; color: #00ff88;">${total}</td>`;
+    });
+    footerHtml += `</tr>`;
 
-    tbody.innerHTML = rowsHtml;
+    tbody.innerHTML = bodyHtml + footerHtml;
 }
-
 
 // EKSPORT GRUP
 function exportGroupPdf() {
