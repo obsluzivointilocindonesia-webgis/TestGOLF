@@ -163,7 +163,7 @@ body, html, #cesiumContainer {
     #detail-scorecard-container {
         top: 20% !important; /* Turunkan 20% dari atas agar tidak tertutup panel user */
         height: 70vh !important; /* Batasi tinggi agar tidak meluber */
-        width: 95% !important;
+        width: 100% !important;
         left: 2.5% !important;
         overflow-y: auto; /* Agar bisa di-scroll jika tabel panjang */
     }
@@ -173,6 +173,24 @@ body, html, #cesiumContainer {
         font-size: 0.75rem;
     }
 }
+
+/* Update warna PAR di panel detail */
+#multi-tbody td:nth-child(2) {
+    color: white !important;
+}
+
+/* Posisi Panel Detail untuk Mobile */
+@media screen and (max-width: 480px) {
+    #detail-scorecard-container {
+        top: 15% !important; /* Turunkan posisi */
+        left: 3% !important;
+        width: 94% !important;
+        max-height: 80vh !important;
+        z-index: 99999 !important;
+        overflow-y: auto;
+    }
+}
+
 
 #toolbar-info {
     background-color: rgba(255, 255, 255, 0.8);
