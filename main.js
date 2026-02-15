@@ -1070,24 +1070,30 @@ document.getElementById('viewDetailBtn').addEventListener('click', async () => {
 
 // 2. Tombol Export PDF
 // Saat tombol PDF diklik
-document.getElementById('exportPdfBtn').addEventListener('click', () => {
-    // 1. Siapkan data tabel hidden
-    const isReady = prepareHiddenPdfTable();
-    
-    if (isReady) {
-        const element = document.getElementById('pdf-report-hidden');
-        element.style.display = 'block';
+document.getElementById('exportPdfBtn').addEventListener('click', async () => {
+    // 1. Tarik data terbaru dulu
+    await fetchGroupScores();
 
-        html2pdf().from(element).set({
-            margin: 0.5,
-            filename: `Scorecard_${currentSyncRoundId || 'Golf'}.pdf`,
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
-        }).save().then(() => {
-            element.style.display = 'none';
+    // 2. Siapkan tabel PDF
+    const ready = prepareHiddenPdfTable();
+
+    if (ready) {
+        const element = document.getElementById('pdf-report-hidden');
+        element.style.display = 'block'; // Tampilkan sebentar agar ter-render
+
+        const opt = {
+            margin:       0.5,
+            filename:     `TerraGOLF_${currentSyncRoundId}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => {
+            element.style.display = 'none'; // Sembunyikan lagi
         });
     } else {
-        alert("Gagal menyiapkan data PDF. Pastikan skor sudah muncul di layar.");
+        alert("Gagal menyiapkan data PDF. Pastikan data skor sudah masuk.");
     }
 });
 
@@ -1096,54 +1102,54 @@ function prepareHiddenPdfTable() {
     if (!groupData || groupData.length === 0) return false;
 
     const tbody = document.getElementById('table-body-detail-pdf');
-    const thead = document.querySelector('#pdf-report-hidden table thead');
-    const pdfRoundId = document.getElementById('pdf-round-id');
+    const pdfRoundIdElem = document.getElementById('pdf-round-id');
+    const pdfDateElem = document.getElementById('pdf-date');
     
-    if (!tbody || !thead) return false;
+    // Set Metadata PDF
+    if (pdfRoundIdElem) pdfRoundIdElem.innerText = currentSyncRoundId;
+    if (pdfDateElem) pdfDateElem.innerText = "Tanggal: " + new Date().toLocaleDateString('id-ID');
 
-    // Tampilkan Round ID di PDF
-    if (pdfRoundId) pdfRoundId.textContent = currentSyncRoundId || "Pribadi";
-
-    const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Golfer'))];
+    // Identifikasi pemain
+    const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'User'))];
     let totals = players.map(() => 0);
 
     // Header PDF
+    const thead = document.querySelector('#pdf-report-hidden thead');
     thead.innerHTML = `
         <tr style="background: #1a472a; color: white;">
-            <th style="border: 1px solid #ddd; padding: 8px;">Hole</th>
-            <th style="border: 1px solid #ddd; padding: 8px;">PAR</th>
-            ${players.map(p => `<th style="border: 1px solid #ddd; padding: 8px;">${p}</th>`).join('')}
+            <th style="border: 1px solid #ddd; padding: 5px;">Hole</th>
+            <th style="border: 1px solid #ddd; padding: 5px;">PAR</th>
+            ${players.map(p => `<th style="border: 1px solid #ddd; padding: 5px;">${p}</th>`).join('')}
         </tr>`;
 
-    // Isi Baris
-    let rows = "";
+    // Isi Baris Hole 1-18
+    let rowContent = "";
     for (let h = 1; h <= 18; h++) {
-        const sample = groupData.find(s => s.hole_number === h);
-        const par = sample ? sample.par : '-';
+        const scores = groupData.filter(s => s.hole_number === h);
+        const par = scores.length > 0 ? scores[0].par : '-';
         
-        rows += `<tr>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${h}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${par}</td>`;
+        rowContent += `<tr>
+            <td style="border: 1px solid #ddd; padding: 5px; text-align: center;">${h}</td>
+            <td style="border: 1px solid #ddd; padding: 5px; text-align: center;">${par}</td>`;
         
         players.forEach((p, idx) => {
-            const s = groupData.find(score => score.hole_number === h && score.profiles.full_name === p);
-            const strokes = s ? parseInt(s.strokes) : 0;
-            totals[idx] += strokes;
-            rows += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${strokes || '-'}</td>`;
+            const entry = groupData.find(s => s.hole_number === h && s.profiles.full_name === p);
+            const score = entry ? parseInt(entry.strokes) : 0;
+            totals[idx] += score;
+            rowContent += `<td style="border: 1px solid #ddd; padding: 5px; text-align: center;">${score || '-'}</td>`;
         });
-        rows += `</tr>`;
+        rowContent += `</tr>`;
     }
 
-    // Baris TOTAL di PDF
-    rows += `<tr style="background: #eee; font-weight: bold;">
-        <td colspan="2" style="border: 1px solid #ddd; padding: 8px; text-align: right;">TOTAL</td>
-        ${totals.map(t => `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${t}</td>`).join('')}
+    // Baris TOTAL
+    rowContent += `<tr style="background: #eee; font-weight: bold;">
+        <td colspan="2" style="border: 1px solid #ddd; padding: 5px; text-align: right;">TOTAL</td>
+        ${totals.map(t => `<td style="border: 1px solid #ddd; padding: 5px; text-align: center;">${t}</td>`).join('')}
     </tr>`;
 
-    tbody.innerHTML = rows;
+    tbody.innerHTML = rowContent;
     return true;
 }
-
 
 //-----------------------------------------
 // REGISTER
@@ -1884,45 +1890,43 @@ async function fetchGroupScores() {
     if (!roundId) return;
 
     try {
-        // TAHAP 1: Ambil data tracks saja (Menggunakan 'sb')
+        // 1. Ambil data tracks
         const { data: trackData, error: trackError } = await sb
             .from('tracks')
-            .select('*') 
+            .select('*')
             .eq('round_id', roundId)
             .order('hole_number', { ascending: true });
 
         if (trackError) throw trackError;
 
-        if (trackData && trackData.length > 0) {
-            // TAHAP 2: Ambil data profiles secara terpisah
-            const { data: profileData, error: profileError } = await sb
-                .from('profiles')
-                .select('id, full_name');
+        // 2. Ambil data profiles (untuk mendapatkan Nama User)
+        const { data: profileData, error: profileError } = await sb
+            .from('profiles')
+            .select('id, full_name');
 
-            if (profileError) throw profileError;
+        if (profileError) throw profileError;
 
-            // TAHAP 3: Gabungkan data di sisi Client (Manual Join)
-            groupData = trackData.map(t => {
-                const userProfile = profileData.find(p => p.id === t.user_id);
-                return {
-                    ...t,
-                    profiles: { 
-                        full_name: userProfile ? userProfile.full_name : 'Anonim' 
-                    }
-                };
-            });
+        // 3. Gabungkan manual ke variabel global groupData
+        groupData = trackData.map(t => {
+            const userProfile = profileData.find(p => p.id === t.user_id);
+            return {
+                ...t,
+                profiles: { 
+                    full_name: userProfile ? userProfile.full_name : 'Guest' 
+                }
+            };
+        });
 
-            console.log("Data grup berhasil digabung:", groupData);
-            renderMultiplayerTable(); // Update tabel di layar
-            
-        } else {
-            const tbody = document.getElementById('multi-tbody');
-            if(tbody) tbody.innerHTML = "<tr><td colspan='4'>Belum ada skor.</td></tr>";
-        }
+        console.log("Sync Success:", groupData);
+        
+        // Langsung render ke tabel detail agar nama muncul
+        renderMultiplayerTable();
+
     } catch (err) {
         console.error("Gagal tarik data:", err.message);
     }
 }
+
 
 function renderMultiplayerTable() {
     const tbody = document.getElementById('multi-tbody');
