@@ -18,11 +18,17 @@
 </head>
 
 <body>
-    <div id="pdf-report-hidden" style="display: none; background: white; color: black; padding: 20px; font-family: Arial, sans-serif;">
-            <h2 style="text-align: center; color: #1a472a;">DAGO HERITAGE 1917 GOLF COURSE</h2>
-            <p id="pdf-date-multi" style="text-align: right; font-size: 12px;"></p>
-            <p>Group Round ID: <strong id="pdf-round-id"></strong></p>
-            <div id="pdf-tables-container"></div> </div>
+    <div id="pdf-report-hidden" style="display: none; padding: 20px; color: black; background: white;">
+    <h2 style="text-align: center;">DAGO HERITAGE SCORECARD</h2>
+    <p>Round ID: <span id="pdf-round-id"></span></p>
+    <p id="pdf-date"></p>
+    <table style="width: 100%; border-collapse: collapse; border: 1px solid black;">
+        <thead>
+            </thead>
+        <tbody id="table-body-detail-pdf">
+            </tbody>
+    </table>
+</div>
 
     <div id="user-info-panel" style="position: fixed; top: calc(60px + env(safe-area-inset-top)); left: 15px; width: 220px; z-index: 1011; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; border-bottom: 1px solid #444; backdrop-filter: blur(5px); color: white;">
         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
@@ -57,35 +63,6 @@
         </div>
     </div>
 
-
-
-
-<div id="pdf-report-hidden" style="display: none; background: white; color: black; padding: 20px; font-family: Arial, sans-serif;">
-    <h2 style="text-align: center; color: #1a472a;">DAGO HERITAGE 1917 GOLF COURSE</h2>
-    <p id="pdf-date" style="text-align: right; font-size: 12px;"></p>
-    <p>Player: <strong id="pdf-player-name">User</strong></p>
-    
-    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-        <thead>
-            <tr style="background: #1a472a; color: white;">
-                <th style="border: 1px solid #ddd; padding: 8px;">Hole</th>
-                <th style="border: 1px solid #ddd; padding: 8px;">PAR</th>
-                <th style="border: 1px solid #ddd; padding: 8px;">Strokes</th>
-                <th style="border: 1px solid #ddd; padding: 8px;">Score</th>
-            </tr>
-        </thead>
-        <tbody id="table-body-detail-pdf">
-            </tbody>
-        <tfoot>
-            <tr style="font-weight: bold; background: #eee;">
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">TOTAL</td>
-                <td id="total-par-pdf" style="border: 1px solid #ddd; padding: 8px; text-align: center;">0</td>
-                <td id="total-strokes-pdf" style="border: 1px solid #ddd; padding: 8px; text-align: center;">0</td>
-                <td id="total-diff-pdf" style="border: 1px solid #ddd; padding: 8px; text-align: center;">0</td>
-            </tr>
-        </tfoot>
-    </table>
-</div>
 <button id="backToWebBtn" class="back-btn">
     ← Back To Web
 </button>

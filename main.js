@@ -1101,54 +1101,58 @@ document.getElementById('exportPdfBtn').addEventListener('click', async () => {
 function prepareHiddenPdfTable() {
     if (!groupData || groupData.length === 0) return false;
 
+    // Ambil elemen-elemen PDF
     const tbody = document.getElementById('table-body-detail-pdf');
+    const thead = document.querySelector('#pdf-report-hidden table thead');
     const pdfRoundIdElem = document.getElementById('pdf-round-id');
-    const pdfDateElem = document.getElementById('pdf-date');
-    
-    // Set Metadata PDF
+
+    // Tampilkan Round ID di PDF
     if (pdfRoundIdElem) pdfRoundIdElem.innerText = currentSyncRoundId;
-    if (pdfDateElem) pdfDateElem.innerText = "Tanggal: " + new Date().toLocaleDateString('id-ID');
 
-    // Identifikasi pemain
-    const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'User'))];
-    let totals = players.map(() => 0);
+    // Filter pemain unik
+    const players = [...new Set(groupData.map(item => item.profiles.full_name))];
+    let playerTotals = players.map(() => 0);
 
-    // Header PDF
-    const thead = document.querySelector('#pdf-report-hidden thead');
-    thead.innerHTML = `
-        <tr style="background: #1a472a; color: white;">
-            <th style="border: 1px solid #ddd; padding: 5px;">Hole</th>
-            <th style="border: 1px solid #ddd; padding: 5px;">PAR</th>
-            ${players.map(p => `<th style="border: 1px solid #ddd; padding: 5px;">${p}</th>`).join('')}
-        </tr>`;
-
-    // Isi Baris Hole 1-18
-    let rowContent = "";
-    for (let h = 1; h <= 18; h++) {
-        const scores = groupData.filter(s => s.hole_number === h);
-        const par = scores.length > 0 ? scores[0].par : '-';
-        
-        rowContent += `<tr>
-            <td style="border: 1px solid #ddd; padding: 5px; text-align: center;">${h}</td>
-            <td style="border: 1px solid #ddd; padding: 5px; text-align: center;">${par}</td>`;
-        
-        players.forEach((p, idx) => {
-            const entry = groupData.find(s => s.hole_number === h && s.profiles.full_name === p);
-            const score = entry ? parseInt(entry.strokes) : 0;
-            totals[idx] += score;
-            rowContent += `<td style="border: 1px solid #ddd; padding: 5px; text-align: center;">${score || '-'}</td>`;
-        });
-        rowContent += `</tr>`;
+    // Bangun Header PDF secara dinamis
+    if (thead) {
+        thead.innerHTML = `
+            <tr style="background-color: #1a472a; color: white;">
+                <th style="border: 1px solid #000; padding: 5px;">Hole</th>
+                <th style="border: 1px solid #000; padding: 5px;">PAR</th>
+                ${players.map(p => `<th style="border: 1px solid #000; padding: 5px;">${p}</th>`).join('')}
+            </tr>`;
     }
 
-    // Baris TOTAL
-    rowContent += `<tr style="background: #eee; font-weight: bold;">
-        <td colspan="2" style="border: 1px solid #ddd; padding: 5px; text-align: right;">TOTAL</td>
-        ${totals.map(t => `<td style="border: 1px solid #ddd; padding: 5px; text-align: center;">${t}</td>`).join('')}
+    // Bangun isi tabel
+    let tableHtml = "";
+    for (let h = 1; h <= 18; h++) {
+        const holeData = groupData.filter(d => d.hole_number === h);
+        const par = holeData.length > 0 ? holeData[0].par : '-';
+
+        tableHtml += `<tr>
+            <td style="border: 1px solid #000; padding: 5px; text-align: center;">${h}</td>
+            <td style="border: 1px solid #000; padding: 8px; text-align: center;">${par}</td>`;
+        
+        players.forEach((player, idx) => {
+            const scoreEntry = groupData.find(d => d.hole_number === h && d.profiles.full_name === player);
+            const strokes = scoreEntry ? parseInt(scoreEntry.strokes) : 0;
+            playerTotals[idx] += strokes;
+            tableHtml += `<td style="border: 1px solid #000; padding: 5px; text-align: center;">${strokes || '-'}</td>`;
+        });
+        tableHtml += `</tr>`;
+    }
+
+    // Baris Total
+    tableHtml += `<tr style="background-color: #f2f2f2; font-weight: bold;">
+        <td colspan="2" style="border: 1px solid #000; padding: 5px; text-align: right;">TOTAL</td>
+        ${playerTotals.map(t => `<td style="border: 1px solid #000; padding: 5px; text-align: center;">${t}</td>`).join('')}
     </tr>`;
 
-    tbody.innerHTML = rowContent;
-    return true;
+    if (tbody) {
+        tbody.innerHTML = tableHtml;
+        return true;
+    }
+    return false;
 }
 
 //-----------------------------------------
@@ -1899,27 +1903,28 @@ async function fetchGroupScores() {
 
         if (trackError) throw trackError;
 
-        // 2. Ambil data profiles (untuk mendapatkan Nama User)
+        // 2. Ambil data profiles (pastikan mengambil semua yang terlibat)
         const { data: profileData, error: profileError } = await sb
             .from('profiles')
             .select('id, full_name');
 
         if (profileError) throw profileError;
 
-        // 3. Gabungkan manual ke variabel global groupData
+        // 3. Gabungkan manual dengan pembersihan string (trim)
         groupData = trackData.map(t => {
-            const userProfile = profileData.find(p => p.id === t.user_id);
+            // Pastikan perbandingan ID mengabaikan spasi atau perbedaan tipe data
+            const userProfile = profileData.find(p => String(p.id).trim() === String(t.user_id).trim());
             return {
                 ...t,
                 profiles: { 
-                    full_name: userProfile ? userProfile.full_name : 'Guest' 
+                    full_name: userProfile ? userProfile.full_name : 'User ' + String(t.user_id).substring(0,4)
                 }
             };
         });
 
-        console.log("Sync Success:", groupData);
+        console.log("Data Gabungan:", groupData);
         
-        // Langsung render ke tabel detail agar nama muncul
+        // Render ke UI
         renderMultiplayerTable();
 
     } catch (err) {
