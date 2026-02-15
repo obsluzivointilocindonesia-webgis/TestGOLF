@@ -1099,59 +1099,50 @@ document.getElementById('exportPdfBtn').addEventListener('click', async () => {
 
 // FUNGSI TABEL VERTIKAL SEMBUNYI
 function prepareHiddenPdfTable() {
-    // 1. Ambil data dari variabel global groupData (hasil fetch dari Supabase)
-    // Jika groupData kosong, coba ambil dari localStorage sebagai cadangan
-    if (!groupData || groupData.length === 0) {
-        console.warn("Data grup kosong, mencoba memuat data lokal...");
-        // Jika ingin fallback ke single player jika cloud kosong:
-        // const allTracks = JSON.parse(localStorage.getItem('golf_tracks') || '[]');
-        return false; 
-    }
-    
+    // Jika data cloud kosong, jangan paksa cetak
+    if (!groupData || groupData.length === 0) return false;
+
     const tbody = document.getElementById('table-body-detail-pdf');
-    const thead = document.querySelector('#pdf-report-hidden thead');
-    if (!tbody || !thead) return false;
+    const thead = document.querySelector('#pdf-report-hidden table thead');
+    if (!tbody) return false;
 
-    // 2. Ambil daftar pemain unik dari grup
-    const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'User'))];
+    // 1. Identifikasi semua pemain dalam grup
+    const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Golfer'))];
 
-    // 3. Update Header PDF agar kolom sesuai jumlah pemain
+    // 2. Update Header PDF (Dinamis sesuai jumlah pemain)
     thead.innerHTML = `
         <tr style="background: #1a472a; color: white;">
             <th style="border: 1px solid #ddd; padding: 8px;">Hole</th>
             <th style="border: 1px solid #ddd; padding: 8px;">PAR</th>
-            ${players.map(p => `<th style="border: 1px solid #ddd; padding: 8px;">${p.split(' ')[0]}</th>`).join('')}
+            ${players.map(p => `<th style="border: 1px solid #ddd; padding: 8px;">${p}</th>`).join('')}
         </tr>
     `;
 
-    // 4. Reset isi Body
+    // 3. Isi Data Hole 1 - 18
     tbody.innerHTML = "";
     let totalPar = 0;
 
-    // 5. Loop Hole 1 sampai 18
     for (let h = 1; h <= 18; h++) {
-        const sample = groupData.find(s => s.hole_number === h);
-        const parVal = sample ? sample.par : 0;
-        if (parVal > 0) totalPar += parVal;
+        const holeEntries = groupData.filter(s => s.hole_number === h);
+        const parVal = holeEntries.length > 0 ? holeEntries[0].par : 0;
+        totalPar += parVal;
 
-        let row = `<tr>
+        let rowHtml = `<tr>
             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${h}</td>
             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${parVal || '-'}</td>`;
-        
-        // Tambahkan kolom skor untuk setiap pemain
+
         players.forEach(p => {
-            const scoreEntry = groupData.find(s => s.hole_number === h && s.profiles?.full_name === p);
-            row += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${scoreEntry ? scoreEntry.strokes : '-'}</td>`;
+            const pScore = groupData.find(s => s.hole_number === h && s.profiles?.full_name === p);
+            rowHtml += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${pScore ? pScore.strokes : '-'}</td>`;
         });
 
-        row += `</tr>`;
-        tbody.innerHTML += row;
+        rowHtml += `</tr>`;
+        tbody.innerHTML += rowHtml;
     }
 
-    // 6. Update Metadata PDF
-    document.getElementById('pdf-round-id').textContent = currentSyncRoundId || "Sesi Pribadi";
+    // 4. Update Ringkasan Bawah
+    document.getElementById('total-par-pdf').textContent = totalPar;
     document.getElementById('pdf-player-name').textContent = players.join(', ');
-    document.getElementById('pdf-date').textContent = "Tanggal: " + new Date().toLocaleDateString('id-ID');
     
     return true;
 }
@@ -2002,4 +1993,31 @@ function exportGroupPdf() {
     html2pdf().set(opt).from(element).save().then(() => {
         element.style.display = 'none';
     });
+}
+
+//-----------------
+async function fetchGroupScores() {
+    // Ambil round ID aktif dari input
+    const roundId = document.getElementById('roundIdInput').value;
+    if (!roundId) return;
+
+    try {
+        const { data, error } = await sb
+            .from('tracks')
+            .select(`*, profiles(full_name)`)
+            .eq('round_id', roundId)
+            .order('hole_number', { ascending: true });
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            groupData = data; // ISI VARIABEL GLOBAL
+            renderMultiplayerTable(); // Tampilkan di panel hitam
+            prepareHiddenPdfTable();   // Siapkan untuk PDF
+        } else {
+            document.getElementById('multi-tbody').innerHTML = "<tr><td colspan='4'>Data belum ada di cloud.</td></tr>";
+        }
+    } catch (err) {
+        console.error("Gagal tarik data:", err.message);
+    }
 }
