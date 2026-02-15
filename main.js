@@ -1907,19 +1907,51 @@ async function fetchGroupScores() {
     const roundId = document.getElementById('roundIdInput').value || currentSyncRoundId;
     if (!roundId) return;
 
-    const { data, error } = await sb
-        .from('tracks')
-        .select(`*, profiles(full_name)`) // Penting: ambil data profil
-        .eq('round_id', roundId)
-        .order('hole_number', { ascending: true });
+    try {
+        // 1. Ambil data tracks (hanya tabel tracks)
+        const { data: trackData, error: trackError } = await sb
+            .from('tracks')
+            .select('*')
+            .eq('round_id', roundId)
+            .order('hole_number', { ascending: true });
 
-    if (error) {
-        console.error("Error fetching group:", error.message);
-        return;
+        if (trackError) throw trackError;
+
+        if (trackData && trackData.length > 0) {
+            // 2. Ambil data profiles (hanya id dan full_name)
+            const { data: profileData, error: profileError } = await sb
+                .from('profiles')
+                .select('id, full_name');
+
+            if (profileError) throw profileError;
+
+            // 3. Gabungkan manual: pasangkan user_id di tracks dengan id di profiles
+            groupData = trackData.map(t => {
+                const userProfile = profileData.find(p => p.id === t.user_id);
+                return {
+                    ...t,
+                    profiles: { 
+                        full_name: userProfile ? userProfile.full_name : 'Anonim' 
+                    }
+                };
+            });
+
+            console.log("Data grup berhasil digabungkan:", groupData);
+            
+            // 4. Render tampilan
+            renderMultiplayerTable();
+            if (typeof prepareHiddenPdfTable === "function") prepareHiddenPdfTable();
+            
+        } else {
+            document.getElementById('multi-tbody').innerHTML = "<tr><td colspan='4' style='color:white; padding:10px;'>Data skor tidak ditemukan untuk grup ini.</td></tr>";
+        }
+    } catch (err) {
+        console.error("Gagal tarik data:", err.message);
+        // Jika error RLS pada profiles, kita beri fallback nama 'User'
+        if (err.message.includes('profiles')) {
+             console.warn("Mungkin ada kendala izin akses pada tabel profiles.");
+        }
     }
-
-    groupData = data; // Simpan ke variabel global
-    renderMultiplayerTable(); // Panggil fungsi render setelah data dapat
 }
 
 function renderMultiplayerTable() {
