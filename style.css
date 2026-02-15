@@ -161,12 +161,12 @@ body, html, #cesiumContainer {
     }
 
     #detail-scorecard-container {
-        top: 20% !important; /* Turunkan 20% dari atas agar tidak tertutup panel user */
-        height: 70vh !important; /* Batasi tinggi agar tidak meluber */
-        width: 95% !important;
-        left: 2.5% !important;
-        overflow-y: auto; /* Agar bisa di-scroll jika tabel panjang */
-    }
+    top: 15% !important; /* Turunkan posisi agar tidak kena Dynamic Island iPhone */
+    left: 5% !important;
+    width: 90% !important;
+    max-height: 75vh !important;
+    overflow-y: auto !important; /* Supaya bisa di-scroll jika hole banyak */
+    z-index: 10000 !important; /* Pastikan di atas panel lainnya */
     
     /* Perbesar teks tabel sedikit agar mudah dibaca di layar kecil */
     #multiplayer-scorecard-table {

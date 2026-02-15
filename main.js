@@ -1093,69 +1093,42 @@ document.getElementById('exportPdfBtn').addEventListener('click', () => {
 
 // FUNGSI TABEL VERTIKAL SEMBUNYI
 function prepareHiddenPdfTable() {
-    // Pastikan groupData tidak kosong
-    if (!groupData || groupData.length === 0) {
-        console.warn("PDF Gagal: groupData kosong.");
-        return false;
-    }
+    if (!groupData || groupData.length === 0) return false;
 
     const tbody = document.getElementById('table-body-detail-pdf');
-    const thead = document.querySelector('#pdf-report-hidden table thead');
-    const pdfRoundIdElem = document.getElementById('pdf-round-id');
-    
-    if (!tbody || !thead) return false;
-
-    // 1. Tampilkan Round ID di PDF
-    if (pdfRoundIdElem) {
-        pdfRoundIdElem.textContent = currentSyncRoundId || "Pribadi";
-    }
-
-    // 2. Ambil daftar pemain unik
+    const pdfRoundId = document.getElementById('pdf-round-id');
     const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Golfer'))];
 
-    // 3. Render Header PDF
-    thead.innerHTML = `
-        <tr style="background: #1a472a; color: white;">
-            <th style="border: 1px solid #ddd; padding: 8px;">Hole</th>
-            <th style="border: 1px solid #ddd; padding: 8px;">PAR</th>
-            ${players.map(p => `<th style="border: 1px solid #ddd; padding: 8px;">${p.split(' ')[0]}</th>`).join('')}
-        </tr>
-    `;
+    // ISI ROUND ID DI PDF
+    if (pdfRoundId) pdfRoundId.textContent = currentSyncRoundId || "Pribadi";
 
-    // 4. Isi Body & Hitung Total
-    tbody.innerHTML = "";
-    let totals = players.map(() => 0); // Array untuk simpan total strokes tiap pemain
-    let totalPar = 0;
+    let tableRows = "";
+    let totals = players.map(() => 0);
 
     for (let h = 1; h <= 18; h++) {
-        const holeScores = groupData.filter(s => s.hole_number === h);
-        const parVal = holeScores.length > 0 ? holeScores[0].par : 0;
-        totalPar += parVal;
-
-        let rowHtml = `<tr>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${h}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${parVal || '-'}</td>`;
-
-        players.forEach((p, index) => {
-            const pScore = groupData.find(s => s.hole_number === h && s.profiles?.full_name === p);
-            const strokes = pScore ? pScore.strokes : 0;
-            totals[index] += strokes;
-            rowHtml += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${strokes || '-'}</td>`;
+        const sample = groupData.find(s => s.hole_number === h);
+        const par = sample ? sample.par : '-';
+        
+        tableRows += `<tr>
+            <td style="border:1px solid #ddd; padding:5px; text-align:center;">${h}</td>
+            <td style="border:1px solid #ddd; padding:5px; text-align:center;">${par}</td>`;
+        
+        players.forEach((p, idx) => {
+            const s = groupData.find(score => score.hole_number === h && score.profiles.full_name === p);
+            const strokes = s ? parseInt(s.strokes) : 0;
+            totals[idx] += strokes;
+            tableRows += `<td style="border:1px solid #ddd; padding:5px; text-align:center;">${strokes || '-'}</td>`;
         });
-
-        rowHtml += `</tr>`;
-        tbody.innerHTML += rowHtml;
+        tableRows += `</tr>`;
     }
 
-    // 5. Tambahkan Baris TOTAL di paling bawah tabel PDF
-    let totalRowHtml = `
-        <tr style="background: #f2f2f2; font-weight: bold;">
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">TOTAL</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${totalPar}</td>
-            ${totals.map(t => `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${t}</td>`).join('')}
-        </tr>`;
-    tbody.innerHTML += totalRowHtml;
+    // Tambahkan baris TOTAL di PDF
+    tableRows += `<tr style="background:#eee; font-weight:bold;">
+        <td colspan="2" style="border:1px solid #ddd; padding:5px; text-align:right;">TOTAL</td>
+        ${totals.map(t => `<td style="border:1px solid #ddd; padding:5px; text-align:center;">${t}</td>`).join('')}
+    </tr>`;
 
+    tbody.innerHTML = tableRows;
     return true;
 }
 
@@ -1956,31 +1929,57 @@ async function fetchGroupScores() {
 }
 
 function renderMultiplayerTable() {
+    const thead = document.getElementById('multi-thead');
     const tbody = document.getElementById('multi-tbody');
-    if (!tbody || !groupData.length) return;
-
-    const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Anonim'))];
-    let totals = players.map(() => 0);
-    let bodyHtml = "";
-
-    // ... (Loop Hole 1-18 seperti sebelumnya, tapi tambahkan perhitungan total)
-    for (let h = 1; h <= 18; h++) {
-        // ... (Logika baris hole)
-        players.forEach((p, idx) => {
-            const s = groupData.find(score => score.hole_number === h && score.profiles.full_name === p);
-            if(s) totals[idx] += s.strokes;
-        });
+    
+    if (!tbody || !groupData || groupData.length === 0) {
+        if(tbody) tbody.innerHTML = "<tr><td colspan='4' style='color:white; padding:10px;'>Menunggu data skor...</td></tr>";
+        return;
     }
 
-    // TAMBAHKAN BARIS TOTAL DI AKHIR
-    let footerHtml = `<tr style="background: rgba(0,255,136,0.1); font-weight: bold;">
-        <td colspan="2" style="padding: 10px; text-align: right; color: #fff;">TOTAL</td>`;
-    totals.forEach(t => {
-        footerHtml += `<td style="padding: 10px; text-align: center; color: #00ff88;">${t}</td>`;
+    // 1. Ambil daftar pemain unik
+    const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Anonim'))];
+    let playerTotals = players.map(() => 0); // Array untuk hitung total tiap pemain
+
+    // 2. Render Header
+    let headerHtml = `<tr style="background: #1a472a; color: white;">
+                        <th style="padding: 8px; border: 1px solid #444;">Hole</th>
+                        <th style="padding: 8px; border: 1px solid #444;">PAR</th>`;
+    players.forEach(p => {
+        headerHtml += `<th style="padding: 8px; border: 1px solid #444;">${p.split(' ')[0]}</th>`;
+    });
+    headerHtml += `</tr>`;
+    thead.innerHTML = headerHtml;
+
+    // 3. Render Body (Hole 1-18)
+    let bodyHtml = '';
+    for (let h = 1; h <= 18; h++) {
+        const sample = groupData.find(s => s.hole_number === h);
+        const parVal = sample ? sample.par : '-';
+        
+        bodyHtml += `<tr style="border-bottom: 1px solid #333;">
+                        <td style="padding: 6px; text-align: center; color: #aaa;">${h}</td>
+                        <td style="padding: 6px; text-align: center;">${parVal}</td>`;
+        
+        players.forEach((player, idx) => {
+            const scoreEntry = groupData.find(s => s.hole_number === h && s.profiles?.full_name === player);
+            const strokes = scoreEntry ? parseInt(scoreEntry.strokes) : 0;
+            playerTotals[idx] += strokes; // Tambahkan ke total pemain
+            
+            bodyHtml += `<td style="padding: 6px; text-align: center; color: #00ff88;">${strokes || '-'}</td>`;
+        });
+        bodyHtml += `</tr>`;
+    }
+
+    // 4. Tambahkan Baris TOTAL di Akhir Tabel
+    let footerHtml = `<tr style="background: rgba(0,255,136,0.1); font-weight: bold; border-top: 2px solid #00ff88;">
+                        <td colspan="2" style="padding: 10px; text-align: right; color: #fff;">TOTAL</td>`;
+    playerTotals.forEach(total => {
+        footerHtml += `<td style="padding: 10px; text-align: center; color: #00ff88;">${total}</td>`;
     });
     footerHtml += `</tr>`;
-    
-    tbody.innerHTML += footerHtml;
+
+    tbody.innerHTML = bodyHtml + footerHtml;
 }
 
 // EKSPORT GRUP
