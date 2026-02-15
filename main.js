@@ -1070,64 +1070,92 @@ document.getElementById('viewDetailBtn').addEventListener('click', async () => {
 
 // 2. Tombol Export PDF
 // Saat tombol PDF diklik
-document.getElementById('exportPdfBtn').addEventListener('click', async () => {
-    // 1. Pastikan data groupData sudah terisi
-    if (groupData.length === 0) await fetchGroupScores();
-
-    // 2. Siapkan tabel hidden untuk PDF
-    const ready = prepareHiddenPdfTable();
+document.getElementById('exportPdfBtn').addEventListener('click', () => {
+    // 1. Siapkan data tabel hidden
+    const isReady = prepareHiddenPdfTable();
     
-    if (ready) {
+    if (isReady) {
         const element = document.getElementById('pdf-report-hidden');
-        element.style.display = "block"; // Munculkan agar bisa dibaca html2pdf
+        element.style.display = 'block';
 
-        const opt = {
+        html2pdf().from(element).set({
             margin: 0.5,
-            filename: `Golf_Group_Scorecard.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
+            filename: `Scorecard_${currentSyncRoundId || 'Golf'}.pdf`,
             html2canvas: { scale: 2 },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } // Landscape agar muat banyak pemain
-        };
-
-        html2pdf().set(opt).from(element).save().then(() => {
-            element.style.display = "none";
+            jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
+        }).save().then(() => {
+            element.style.display = 'none';
         });
     } else {
-        alert("Data tidak tersedia untuk dicetak.");
+        alert("Gagal menyiapkan data PDF. Pastikan skor sudah muncul di layar.");
     }
 });
 
 // FUNGSI TABEL VERTIKAL SEMBUNYI
 function prepareHiddenPdfTable() {
-    if (!groupData || groupData.length === 0) return false;
+    // Pastikan groupData tidak kosong
+    if (!groupData || groupData.length === 0) {
+        console.warn("PDF Gagal: groupData kosong.");
+        return false;
+    }
 
     const tbody = document.getElementById('table-body-detail-pdf');
-    if (!tbody) return false;
-
-    const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Golfer'))];
+    const thead = document.querySelector('#pdf-report-hidden table thead');
+    const pdfRoundIdElem = document.getElementById('pdf-round-id');
     
-    // Header PDF Dinamis
-    const thead = document.querySelector('#pdf-report-hidden thead');
+    if (!tbody || !thead) return false;
+
+    // 1. Tampilkan Round ID di PDF
+    if (pdfRoundIdElem) {
+        pdfRoundIdElem.textContent = currentSyncRoundId || "Pribadi";
+    }
+
+    // 2. Ambil daftar pemain unik
+    const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Golfer'))];
+
+    // 3. Render Header PDF
     thead.innerHTML = `
         <tr style="background: #1a472a; color: white;">
-            <th>Hole</th><th>PAR</th>
-            ${players.map(p => `<th>${p}</th>`).join('')}
-        </tr>`;
+            <th style="border: 1px solid #ddd; padding: 8px;">Hole</th>
+            <th style="border: 1px solid #ddd; padding: 8px;">PAR</th>
+            ${players.map(p => `<th style="border: 1px solid #ddd; padding: 8px;">${p.split(' ')[0]}</th>`).join('')}
+        </tr>
+    `;
 
-    // Isi Baris Hole 1-18
+    // 4. Isi Body & Hitung Total
     tbody.innerHTML = "";
+    let totals = players.map(() => 0); // Array untuk simpan total strokes tiap pemain
+    let totalPar = 0;
+
     for (let h = 1; h <= 18; h++) {
-        const rowData = groupData.filter(s => s.hole_number === h);
-        const par = rowData.length > 0 ? rowData[0].par : '-';
-        
-        let row = `<tr><td>${h}</td><td>${par}</td>`;
-        players.forEach(p => {
-            const s = groupData.find(score => score.hole_number === h && score.profiles.full_name === p);
-            row += `<td>${s ? s.strokes : '-'}</td>`;
+        const holeScores = groupData.filter(s => s.hole_number === h);
+        const parVal = holeScores.length > 0 ? holeScores[0].par : 0;
+        totalPar += parVal;
+
+        let rowHtml = `<tr>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${h}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${parVal || '-'}</td>`;
+
+        players.forEach((p, index) => {
+            const pScore = groupData.find(s => s.hole_number === h && s.profiles?.full_name === p);
+            const strokes = pScore ? pScore.strokes : 0;
+            totals[index] += strokes;
+            rowHtml += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${strokes || '-'}</td>`;
         });
-        row += `</tr>`;
-        tbody.innerHTML += row;
+
+        rowHtml += `</tr>`;
+        tbody.innerHTML += rowHtml;
     }
+
+    // 5. Tambahkan Baris TOTAL di paling bawah tabel PDF
+    let totalRowHtml = `
+        <tr style="background: #f2f2f2; font-weight: bold;">
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">TOTAL</td>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${totalPar}</td>
+            ${totals.map(t => `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${t}</td>`).join('')}
+        </tr>`;
+    tbody.innerHTML += totalRowHtml;
+
     return true;
 }
 
@@ -1928,51 +1956,31 @@ async function fetchGroupScores() {
 }
 
 function renderMultiplayerTable() {
-    const thead = document.getElementById('multi-thead');
     const tbody = document.getElementById('multi-tbody');
-    
-    // Jika elemen tidak ada di HTML, kita gunakan selector tabel umum
-    if (!thead || !tbody) {
-        console.error("Elemen tabel multiplayer tidak ditemukan di HTML");
-        return;
-    }
+    if (!tbody || !groupData.length) return;
 
-    if (!groupData || groupData.length === 0) {
-        tbody.innerHTML = "<tr><td colspan='2' style='color:white; padding:10px;'>Menunggu data skor...</td></tr>";
-        return;
-    }
-
-    // Ambil daftar pemain unik
     const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Anonim'))];
+    let totals = players.map(() => 0);
+    let bodyHtml = "";
 
-    // 1. Render Header (Hole, PAR, Nama Pemain...)
-    let headerHtml = `<tr style="background: #1a472a; color: white;">
-                        <th style="padding: 10px; border: 1px solid #444;">Hole</th>
-                        <th style="padding: 10px; border: 1px solid #444;">PAR</th>`;
-    players.forEach(p => {
-        headerHtml += `<th style="padding: 10px; border: 1px solid #444;">${p.split(' ')[0]}</th>`;
-    });
-    headerHtml += `</tr>`;
-    thead.innerHTML = headerHtml;
-
-    // 2. Render Body (Hole 1-18)
-    let bodyHtml = '';
+    // ... (Loop Hole 1-18 seperti sebelumnya, tapi tambahkan perhitungan total)
     for (let h = 1; h <= 18; h++) {
-        const sample = groupData.find(s => s.hole_number === h);
-        const parVal = sample ? sample.par : '-';
-        
-        bodyHtml += `<tr style="border-bottom: 1px solid #333;">
-                        <td style="padding: 8px; text-align: center; color: #aaa;">${h}</td>
-                        <td style="padding: 8px; text-align: center; color: #fff;">${parVal}</td>`;
-        
-        players.forEach(player => {
-            const score = groupData.find(s => s.hole_number === h && s.profiles?.full_name === player);
-            const strokes = score ? score.strokes : '-';
-            bodyHtml += `<td style="padding: 8px; text-align: center; color: #00ff88; font-weight: bold;">${strokes}</td>`;
+        // ... (Logika baris hole)
+        players.forEach((p, idx) => {
+            const s = groupData.find(score => score.hole_number === h && score.profiles.full_name === p);
+            if(s) totals[idx] += s.strokes;
         });
-        bodyHtml += `</tr>`;
     }
-    tbody.innerHTML = bodyHtml;
+
+    // TAMBAHKAN BARIS TOTAL DI AKHIR
+    let footerHtml = `<tr style="background: rgba(0,255,136,0.1); font-weight: bold;">
+        <td colspan="2" style="padding: 10px; text-align: right; color: #fff;">TOTAL</td>`;
+    totals.forEach(t => {
+        footerHtml += `<td style="padding: 10px; text-align: center; color: #00ff88;">${t}</td>`;
+    });
+    footerHtml += `</tr>`;
+    
+    tbody.innerHTML += footerHtml;
 }
 
 // EKSPORT GRUP

@@ -159,6 +159,19 @@ body, html, #cesiumContainer {
         font-size: 0.7rem;
         padding: 4px;
     }
+
+    #detail-scorecard-container {
+        top: 20% !important; /* Turunkan 20% dari atas agar tidak tertutup panel user */
+        height: 70vh !important; /* Batasi tinggi agar tidak meluber */
+        width: 95% !important;
+        left: 2.5% !important;
+        overflow-y: auto; /* Agar bisa di-scroll jika tabel panjang */
+    }
+    
+    /* Perbesar teks tabel sedikit agar mudah dibaca di layar kecil */
+    #multiplayer-scorecard-table {
+        font-size: 0.75rem;
+    }
 }
 
 #toolbar-info {
