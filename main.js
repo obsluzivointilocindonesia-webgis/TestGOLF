@@ -318,7 +318,7 @@ document.getElementById('undoBtn').addEventListener('click', () => {
         
         // Munculkan kembali instruksi jika semua titik habis
         if (activePoints.length === 0) {
-            document.getElementById('toolbar-info').style.display = 'block';
+            document.getElementById('toolbar-info').style.display = 'none';
         }
     }
 
@@ -648,7 +648,7 @@ document.getElementById('clearBtn').addEventListener('click', () => {
     document.getElementById('chartContainer').style.display = 'none';
     const infoBox = document.getElementById('toolbar-info');
     if (infoBox) {
-        infoBox.style.display = 'block'; 
+        infoBox.style.display = 'none'; 
     }
 });
 
