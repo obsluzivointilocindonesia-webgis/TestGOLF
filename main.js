@@ -1778,63 +1778,6 @@ async function showHistoryRounds() {
 // Hubungkan tombol utama ke fungsi modal
 //document.getElementById('btnHistoryRounds').addEventListener('click', showHistoryRounds);
 
-document.getElementById('btnHistoryRounds').addEventListener('click', async () => {
-    const { data: { user } } = await sb.auth.getUser();
-    
-    if (!user) {
-        alert("Please login first.");
-        return;
-    }
-
-    // Sembunyikan panel info agar tidak menghalangi
-    if (document.getElementById('user-info-panel')) {
-        document.getElementById('user-info-panel').style.display = 'none'; 
-    }
-
-    // Tampilkan Modal
-    toggleElement('history-modal');
-    const listContainer = document.getElementById('history-list-container');
-    listContainer.innerHTML = "<p style='color: #00ff88;'>Loading Rounds...</p>";
-
-    // Ambil data round unik dari Supabase
-    const { data: cloudTracks, error } = await sb
-        .from('tracks')
-        .select('round_id, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-    if (error || !cloudTracks.length) {
-        listContainer.innerHTML = "<p style='color:#ccc;'>No history found.</p>";
-        return;
-    }
-
-    // Kelompokkan agar round_id tidak duplikat
-    const uniqueRounds = [...new Map(cloudTracks.map(item => [item.round_id, item])).values()];
-
-    listContainer.innerHTML = "";
-    uniqueRounds.forEach(round => {
-        // Coba parsing ID jika itu timestamp, jika bukan gunakan created_at
-        const dateObj = isNaN(round.round_id) ? new Date(round.created_at) : new Date(parseInt(round.round_id));
-        const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-        const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-        const item = document.createElement('div');
-        item.style = "background: rgba(255,255,255,0.05); padding: 12px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;";
-        
-        item.innerHTML = `
-            <div>
-                <div style="font-size: 0.9rem; font-weight: bold; color: white;">${round.round_id}</div>
-                <div style="font-size: 0.7rem; color: #888;">${dateStr} - ${timeStr} WIB</div>
-            </div>
-            <button onclick="printRoundFromSupabase('${round.round_id}')" 
-                    style="background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold;">
-                PRINT
-            </button>
-        `;
-        listContainer.appendChild(item);
-    });
-});
-
 // Menangani klik pada tombol cetak di dalam modal (Event Delegation)
 document.addEventListener('click', function (e) {
     if (e.target && e.target.classList.contains('btn-print-history')) {
@@ -1855,15 +1798,6 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// Menangani klik tombol utama "Print Other Round"
-const btnHistory = document.getElementById('btnHistoryRounds');
-if (btnHistory) {
-    btnHistory.addEventListener('click', showHistoryRounds);
-}
-
-// Pastikan tombol utama terhubung
-document.getElementById('btnHistoryRounds').addEventListener('click', showHistoryRounds);
-//
 
 //-------------------
 // PELANGGAN PRREMIUM
