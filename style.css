@@ -79,10 +79,10 @@ body, html, #cesiumContainer {
 
 @media screen and (max-width: 768px) {
     /* Samakan semua class tombol agar lebarnya konsisten */
-    .btn, .menu-button-ops, .menu-button {
+    .btn, .menu-button {
         padding: 10px 12px; 
         font-size: 13px;
-        margin: 4px 0;      /* Beri jarak vertikal antar tombol */
+        margin: 2px 0;      /* Beri jarak vertikal antar tombol */
         width: 100px;       /* Tentukan lebar pasti agar sejajar rapi */
         display: flex;      /* Gunakan flex untuk centering teks */
         align-items: center;
@@ -92,6 +92,21 @@ body, html, #cesiumContainer {
         color: white;
         text-align: center;
     }
+
+    .menu-button-ops{
+        padding: 10px 12px; 
+        font-size: 13px;
+        margin: 2px 0;      /* Beri jarak vertikal antar tombol */
+        width: 100px;       /* Tentukan lebar pasti agar sejajar rapi */
+        display: flex;      /* Gunakan flex untuk centering teks */
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        border: none;
+        color: rgb(0, 0, 0);
+        text-align: center;
+    }
+
 
     /* Jika Anda ingin tombol-tombol kiri ini masuk dalam satu kolom */
     .left-menu-container {
