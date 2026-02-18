@@ -86,6 +86,35 @@ body, html, #cesiumContainer {
         display: block;
     }
 
+    .btn-navy {
+        display: flex;         
+        flex: 1;               /* MAGIC: Membuat semua tombol lebarnya sama rata */
+        justify-content: center; 
+        align-items: center;
+        
+        padding: 10px 5px;     
+        font-size: 13px;       
+        border-radius: 6px;
+        border: none;
+        color: white;
+        white-space: nowrap;   /* Teks tidak turun ke bawah */
+        cursor: pointer;
+    }
+    .btn-dark {
+        display: flex;         
+        flex: 1;               /* MAGIC: Membuat semua tombol lebarnya sama rata */
+        justify-content: center; 
+        align-items: center;
+        
+        padding: 10px 5px;     
+        font-size: 13px;       
+        border-radius: 6px;
+        border: none;
+        color: white;
+        white-space: nowrap;   /* Teks tidak turun ke bawah */
+        cursor: pointer;
+    }
+
     .btn {
         padding: 10px 10px; /* Area klik lebih luas */
         font-size: 14px;    /* Tulisan lebih besar */
