@@ -67,8 +67,8 @@ body, html, #cesiumContainer {
     cursor: pointer;
 }
 
-.btn-navy { background: #000080; }
-.btn-dark { background: #2c3e50; }
+.btn-navy { background-color: #000080 !important; }
+.btn-dark { background-color: #2c3e50 !important; }
 
 .nav-btn-secondary {
     position: fixed;
@@ -78,49 +78,27 @@ body, html, #cesiumContainer {
 }
 
 @media screen and (max-width: 768px) {
-    .menu-button-ops{
-        padding: 10px 20px; 
-        font-size: 12px;
-        margin: 3px;
-        width: 50%;
-        display: block;
-    }
-
-    .btn-navy {
-        display: flex;         
-        flex: 1;               /* MAGIC: Membuat semua tombol lebarnya sama rata */
-        justify-content: center; 
+    /* Samakan semua class tombol agar lebarnya konsisten */
+    .btn, .menu-button-ops, .menu-button {
+        padding: 10px 12px; 
+        font-size: 13px;
+        margin: 4px 0;      /* Beri jarak vertikal antar tombol */
+        width: 100px;       /* Tentukan lebar pasti agar sejajar rapi */
+        display: flex;      /* Gunakan flex untuk centering teks */
         align-items: center;
-        
-        padding: 10px 5px;     
-        font-size: 13px;       
+        justify-content: center;
         border-radius: 6px;
         border: none;
         color: white;
-        white-space: nowrap;   /* Teks tidak turun ke bawah */
-        cursor: pointer;
-    }
-    .btn-dark {
-        display: flex;         
-        flex: 1;               /* MAGIC: Membuat semua tombol lebarnya sama rata */
-        justify-content: center; 
-        align-items: center;
-        
-        padding: 10px 5px;     
-        font-size: 13px;       
-        border-radius: 6px;
-        border: none;
-        color: white;
-        white-space: nowrap;   /* Teks tidak turun ke bawah */
-        cursor: pointer;
+        text-align: center;
     }
 
-    .btn {
-        padding: 10px 10px; /* Area klik lebih luas */
-        font-size: 14px;    /* Tulisan lebih besar */
-        margin: 1px 2px;   /* Jarak antar tombol agar tidak salah tekan */
-        width: 50%;         /* Opsional: Tombol melebar hampir memenuhi layar */
-        display: block;     /* Membuat tombol berderet ke bawah */
+    /* Jika Anda ingin tombol-tombol kiri ini masuk dalam satu kolom */
+    .left-menu-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start; /* Sejajarkan ke kiri */
+        gap: 2px;
     }
 
     /* Container untuk membungkus tombol agar berjejer */
@@ -131,21 +109,7 @@ body, html, #cesiumContainer {
         width: 100%;           /* Memenuhi lebar panel */
     }
 
-    .menu-button {
-        /* Hapus display: block dan width: 50% yang lama */
-        display: flex;         
-        flex: 1;               /* MAGIC: Membuat semua tombol lebarnya sama rata */
-        justify-content: center; 
-        align-items: center;
-        
-        padding: 10px 5px;     
-        font-size: 13px;       
-        border-radius: 6px;
-        border: none;
-        color: white;
-        white-space: nowrap;   /* Teks tidak turun ke bawah */
-        cursor: pointer;
-    }
+    
     /* Jika tombol berada dalam satu container/wadah */
     #toolbar {
         top: 10px;
