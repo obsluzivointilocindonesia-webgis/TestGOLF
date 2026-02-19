@@ -1328,7 +1328,7 @@ async function saveScoreToCloud(hole, par, strokes, term) {
 
 // supabase access
 async function checkAccess() {
-    console.log("Memulai pengecekan akses per lapangan...");
+    console.log("Memulai pengecekan akses...");
     const { data: { session } } = await sb.auth.getSession();
     const overlay = document.getElementById('auth-overlay');
 
@@ -1337,72 +1337,58 @@ async function checkAccess() {
         return;
     }
 
-    // 1. DETEKSI MERCHANT ID
     const currentMerchantId = window.location.hostname.includes('mvg') ? 'MVG' : 'TGR';
 
-    // 2. AMBIL DATA PROFIL (Untuk Trial) & SUBSCRIPTION (Untuk Akses)
+    // 1. Ambil Profile & Subscription
     const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
-    
-    // Query sekarang mengambil is_paid dan valid_until dari tabel subscriptions
     const { data: subscription } = await sb.from('subscriptions')
-        .select('is_paid, valid_until, status')
+        .select('*')
         .eq('user_id', session.user.id)
-        .eq('merchant_id', currentMerchantId) 
+        .eq('merchant_id', currentMerchantId)
         .eq('status', 'ACTIVE')
         .maybeSingle();
 
-    if (!profile) {
-        console.log("Profil tidak ditemukan, membuat profil baru...");
-        const metaName = session.user.user_metadata?.full_name || "Golfer";
-        
-        const { data: newProf, error: insErr } = await sb
-            .from('profiles')
-            .insert([{ 
-                id: session.user.id, 
-                full_name: metaName,
-
-            }])
-            .select()
-            .maybeSingle();
-
-        if (insErr) {
-            console.error("Gagal buat profil:", insErr.message);
-            alert("Message: Database error saving new user - " + insErr.message);
-            return;
-        }
-        profile = newProf;
-    }
+    if (!profile) return; // Tunggu proses insert profile selesai
 
     currentUser = profile;
     const today = new Date();
     
-    // 3. LOGIKA TRIAL (Global berdasarkan umur akun di profiles)
-    const joinDate = new Date(profile.created_at);
-    const diffDays = Math.ceil((today - joinDate) / (1000 * 60 * 60 * 24));
-    const isTrialValid = diffDays <= 7;
+    // 2. LOGIKA TRIAL (Gunakan created_at atau join_date dari DB)
+    const dateFromDb = profile.created_at || profile.join_date;
+    const joinDate = new Date(dateFromDb);
     
-    // 4. LOGIKA BERBAYAR (Spesifik per lapangan di tabel subscriptions)
-    // Cek apakah kolom is_paid TRUE dan valid_until masih berlaku
+    // Hitung selisih hari secara presisi
+    const diffInMs = today - joinDate;
+    const diffDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+    
+    console.log(`User join: ${joinDate.toLocaleDateString()}. Selisih: ${diffDays} hari.`);
+
+    // Kondisi Trial: Valid jika join_date <= 7 hari yang lalu
+    const isTrialValid = diffDays <= 7;
+
+    // 3. LOGIKA BERBAYAR
     const isSubActive = subscription && 
                         subscription.is_paid === true && 
                         new Date(subscription.valid_until) > today;
 
-    // 5. KUNCI PINTU
-    if (!isSubActive && !isTrialValid) {
-        console.log(`Akses terkunci untuk ${currentMerchantId}.`);
-        lockUI(session.user.email, currentMerchantId); 
-    } else {
-        console.log("Akses diberikan!");
+    // 4. PENENTUAN AKSES (Buka jika Trial VALID -ATAU- Sub AKTIF)
+    if (isTrialValid || isSubActive) {
+        console.log("Akses Diberikan!");
         overlay.style.display = 'none';
+        
+        // Jalankan fungsi aplikasi
         if (typeof loadTracksFromCloud === "function") loadTracksFromCloud();
         
-        // Update UI Badge
+        // Update Badge UI
         const badge = document.getElementById('user-status-badge');
         if (badge) {
-            // Jika isSubActive TRUE, maka status PRO
             badge.textContent = isSubActive ? "PRO" : "TRIAL";
             badge.style.backgroundColor = isSubActive ? "#00ff88" : "#555";
         }
+    } else {
+        // HANYA kunci jika keduanya FALSE (Trial habis DAN tidak bayar)
+        console.log("Akses Ditolak: Trial habis & belum berlangganan.");
+        lockUI(session.user.email, currentMerchantId);
     }
 }
 
