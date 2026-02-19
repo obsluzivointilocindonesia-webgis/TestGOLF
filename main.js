@@ -1344,7 +1344,7 @@ async function saveScoreToCloud(hole, par, strokes, term) {
 
 // supabase access
 async function checkAccess() {
-    console.log("Memulai pengecekan akses...");
+    console.log("Memulai pengecekan akses per lapangan...");
     const { data: { session } } = await sb.auth.getSession();
     const overlay = document.getElementById('auth-overlay');
 
@@ -1355,61 +1355,61 @@ async function checkAccess() {
 
     const currentMerchantId = window.location.hostname.includes('mvg') ? 'MVG' : 'TGR';
 
-    // 1. Ambil Profile & Subscription
-    const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
-    const { data: subscription } = await sb.from('subscriptions')
+    // 1. Ambil Profil (Buat jika belum ada)
+    let { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+    
+    if (!profile) {
+        const metaName = session.user.user_metadata?.full_name || "Golfer";
+        const { data: newProf } = await sb.from('profiles').insert([{ id: session.user.id, full_name: metaName }]).select().single();
+        profile = newProf;
+    }
+    currentUser = profile;
+    if (document.getElementById('display-user-name')) document.getElementById('display-user-name').textContent = profile.full_name;
+
+    // 2. Cek Subscription Khusus Lapangan Ini
+    let { data: subscription } = await sb.from('subscriptions')
         .select('*')
         .eq('user_id', session.user.id)
         .eq('merchant_id', currentMerchantId)
-        .eq('status', 'ACTIVE')
         .maybeSingle();
 
-    if (!profile) return; // Tunggu proses insert profile selesai
+    // 3. JIKA BELUM PERNAH LOGIN DI LAPANGAN INI (Buat Data Trial Otomatis)
+    if (!subscription) {
+        console.log(`Pendaftaran trial baru untuk lapangan: ${currentMerchantId}`);
+        const trialExpiry = new Date();
+        trialExpiry.setDate(trialExpiry.getDate() + 7); // Set 7 hari dari sekarang
 
-    currentUser = profile;
-    const today = new Date();
-
-    const nameEl = document.getElementById('display-user-name');
-    if (nameEl) {
-        // Cek apakah kolomnya bernama full_name atau name di database Anda
-        nameEl.textContent = currentUser.full_name || currentUser.name || "Golfer";
-    }
-    
-    // 2. LOGIKA TRIAL (Gunakan created_at atau join_date dari DB)
-    const dateFromDb = profile.created_at || profile.join_date;
-    const joinDate = new Date(dateFromDb);
-    
-    // Hitung selisih hari secara presisi
-    const diffInMs = today - joinDate;
-    const diffDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-    
-    console.log(`User join: ${joinDate.toLocaleDateString()}. Selisih: ${diffDays} hari.`);
-
-    // Kondisi Trial: Valid jika join_date <= 7 hari yang lalu
-    const isTrialValid = diffDays <= 7;
-
-    // 3. LOGIKA BERBAYAR
-    const isSubActive = subscription && 
-                        subscription.is_paid === true && 
-                        new Date(subscription.valid_until) > today;
-
-    // 4. PENENTUAN AKSES (Buka jika Trial VALID -ATAU- Sub AKTIF)
-    if (isTrialValid || isSubActive) {
-        console.log("Akses Diberikan!");
-        overlay.style.display = 'none';
+        const { data: newSub, error: subErr } = await sb.from('subscriptions')
+            .insert([{
+                user_id: session.user.id,
+                merchant_id: currentMerchantId,
+                status: 'ACTIVE',
+                is_paid: false, // Status trial
+                valid_until: trialExpiry.toISOString()
+            }])
+            .select()
+            .single();
         
-        // Jalankan fungsi aplikasi
+        if (subErr) console.error("Gagal buat trial:", subErr.message);
+        subscription = newSub;
+    }
+
+    // 4. CEK VALIDITAS (Trial atau Paid)
+    const today = new Date();
+    const isValid = subscription && new Date(subscription.valid_until) > today;
+
+    if (isValid) {
+        console.log("Akses diberikan!");
+        overlay.style.display = 'none';
         if (typeof loadTracksFromCloud === "function") loadTracksFromCloud();
         
-        // Update Badge UI
         const badge = document.getElementById('user-status-badge');
         if (badge) {
-            badge.textContent = isSubActive ? "PRO" : "TRIAL";
-            badge.style.backgroundColor = isSubActive ? "#00ff88" : "#555";
+            badge.textContent = subscription.is_paid ? "PRO" : "TRIAL";
+            badge.style.backgroundColor = subscription.is_paid ? "#00ff88" : "#555";
         }
     } else {
-        // HANYA kunci jika keduanya FALSE (Trial habis DAN tidak bayar)
-        console.log("Akses Ditolak: Trial habis & belum berlangganan.");
+        console.log("Masa trial/berlangganan habis.");
         lockUI(session.user.email, currentMerchantId);
     }
 }
