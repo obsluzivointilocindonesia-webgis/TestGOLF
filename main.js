@@ -929,56 +929,71 @@ document.getElementById('historyBtn').addEventListener('click', async () => {
 });
 
 // Fungsi untuk menghapus SEMUA atau SALAH SATU riwayat
-async function deleteTrackUI() {
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) return;
+async function deleteTrackHistory() {
+    if (!currentUser) return alert("Please login first");
 
-    // 1. Deteksi Lapangan Saat Ini
+    // 1. Deteksi Merchant Saat Ini
     const currentMerchantId = window.location.hostname.includes('mvg') ? 'MVG' : 'TGR';
 
-    // 2. Ambil data yang HANYA milik user ini DAN lapangan ini
-    const { data: tracks, error } = await sb
+    // 2. Ambil data HANYA untuk user ini DAN lapangan ini
+    const { data: cloudTracks, error } = await sb
         .from('tracks')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .eq('merchant_id', currentMerchantId) // FILTER PENTING
+        .select('id, hole_number, created_at, merchant_id')
+        .eq('user_id', currentUser.id)
+        .eq('merchant_id', currentMerchantId) // <-- FILTER WAJIB
         .order('created_at', { ascending: false });
 
-    if (error || !tracks || tracks.length === 0) {
-        alert(`No tracks to delete for ${currentMerchantId}`);
-        return;
-    }
+    if (error) return alert("Failed to load data: " + error.message);
+    if (!cloudTracks || cloudTracks.length === 0) return alert(`No data to delete at ${currentMerchantId}`);
 
-    // 3. Tampilkan daftar untuk dipilih (seperti prompt history)
-    let message = `DELETE TRACK - ${currentMerchantId}\nSelect number to delete permanently:\n`;
-    tracks.forEach((t, index) => {
-        const date = new Date(t.created_at).toLocaleString('id-ID');
-        message += `${index + 1}. Hole ${t.hole_number} - ${date}\n`;
+    let message = `DELETE HISTORY - ${currentMerchantId}\n`;
+    message += "Type track number to DELETE (or type 'ALL' to delete ALL in this field):\n";
+    
+    cloudTracks.forEach((t, index) => {
+        const tDate = new Date(t.created_at).toLocaleString('id-ID');
+        message += `${index + 1}. Hole ${t.hole_number} - ${tDate}\n`;
     });
 
     const choice = prompt(message);
-    if (choice) {
-        const selectedIndex = parseInt(choice) - 1;
-        const selectedTrack = tracks[selectedIndex];
+    if (choice === null) return;
 
-        if (selectedTrack) {
-            const confirmDel = confirm(`Are you sure you want to delete Hole ${selectedTrack.hole_number} (${currentMerchantId})?`);
-            
-            if (confirmDel) {
+    if (choice.toUpperCase() === 'ALL') {
+        // PERBAIKAN: Hapus ALL hanya untuk merchant ini
+        if (confirm(`Clear ALL your data permanently at ${currentMerchantId}?`)) {
+            const { error: delError } = await sb
+                .from('tracks')
+                .delete()
+                .eq('user_id', currentUser.id)
+                .eq('merchant_id', currentMerchantId); // <-- KUNCI KEAMANAN
+
+            if (delError) alert("Failed to delete: " + delError.message);
+            else {
+                // Jangan hapus semua golf_tracks di localStorage karena isinya campuran
+                // Lebih baik biarkan saja atau filter secara manual
+                alert(`All data at ${currentMerchantId} has been deleted.`);
+                location.reload();
+            }
+        }
+    } else {
+        const index = parseInt(choice) - 1;
+        const targetTrack = cloudTracks[index];
+
+        if (targetTrack) {
+            if (confirm(`Delete Track Hole ${targetTrack.hole_number} at ${currentMerchantId}?`)) {
                 const { error: delError } = await sb
                     .from('tracks')
                     .delete()
-                    .eq('id', selectedTrack.id)
-                    .eq('merchant_id', currentMerchantId); // Keamanan ekstra
+                    .eq('id', targetTrack.id)
+                    .eq('merchant_id', currentMerchantId); // <-- Keamanan ekstra
 
-                if (delError) {
-                    alert("Delete failed: " + delError.message);
-                } else {
-                    alert("Track deleted successfully.");
-                    // Refresh history atau tampilan map jika perlu
-                    if (typeof loadTracksFromCloud === "function") loadTracksFromCloud();
+                if (delError) alert("Failed to delete: " + delError.message);
+                else {
+                    alert("Success.");
+                    location.reload();
                 }
             }
+        } else {
+            alert("No valid number.");
         }
     }
 }
@@ -1473,28 +1488,26 @@ async function startXenditPayment(userProfile) {
 
 // akses any device
 async function loadTracksFromCloud() {
-    console.log("Memuat histori khusus lapangan ini...");
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return;
 
-    // 1. Deteksi Lapangan Saat Ini
+    // 1. Identifikasi lapangan saat ini
     const currentMerchantId = window.location.hostname.includes('mvg') ? 'MVG' : 'TGR';
 
-    // 2. Query dengan FILTER GANDA (User ID + Merchant ID)
+    // 2. Tambahkan .eq('merchant_id', ...) pada query
     const { data: tracks, error } = await sb
         .from('tracks')
         .select('*')
         .eq('user_id', session.user.id)
-        .eq('merchant_id', currentMerchantId) // <--- KUNCINYA DI SINI
+        .eq('merchant_id', currentMerchantId) // <-- INI WAJIB ADA
         .order('created_at', { ascending: false });
 
     if (error) {
-        console.error("Gagal ambil history:", error.message);
+        console.error("Gagal filter history:", error.message);
         return;
     }
 
-    // 3. Render ke UI
-    console.log(`Ditemukan ${tracks.length} track untuk lapangan ${currentMerchantId}`);
+    // Jalankan fungsi render UI Anda dengan data yang sudah difilter
     renderHistoryUI(tracks); 
 }
 
