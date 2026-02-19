@@ -1352,8 +1352,26 @@ async function checkAccess() {
         .maybeSingle();
 
     if (!profile) {
-        // ... (Kode insert profil baru tetap di sini jika belum ada) ...
-        return;
+        console.log("Profil tidak ditemukan, membuat profil baru...");
+        const metaName = session.user.user_metadata?.full_name || "Golfer";
+        
+        const { data: newProf, error: insErr } = await sb
+            .from('profiles')
+            .insert([{ 
+                id: session.user.id, 
+                full_name: metaName,
+                // HAPUS kolom is_paid dan valid_until dari sini 
+                // karena kolom tersebut sudah kita DROP dari tabel profiles
+            }])
+            .select()
+            .maybeSingle();
+
+        if (insErr) {
+            console.error("Gagal buat profil:", insErr.message);
+            alert("Message: Database error saving new user - " + insErr.message);
+            return;
+        }
+        profile = newProf;
     }
 
     currentUser = profile;
@@ -1469,33 +1487,24 @@ async function startXenditPayment(userProfile) {
 
 // akses any device
 async function loadTracksFromCloud() {
-    if (!currentUser) return;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
 
-    const { data, error } = await sb
+    const currentMerchantId = window.location.hostname.includes('mvg') ? 'MVG' : 'TGR';
+
+    const { data: tracks, error } = await sb
         .from('tracks')
         .select('*')
-        .eq('user_id', currentUser.id)
-        .eq('round_id', localStorage.getItem('current_round_id'));
+        .eq('user_id', session.user.id)
+        .eq('merchant_id', currentMerchantId) // Filter agar TGR tidak muncul di MVG
+        .order('created_at', { ascending: false });
 
     if (error) {
-        console.error("Gagal ambil data cloud:", error.message);
-    } else if (data) {
-        console.log("Data cloud sinkron:", data.length, "entry ditemukan.");
-        
-        // Simpan data cloud ke LocalStorage agar UI updateSummaryUI() bisa membacanya
-        // Kita petakan agar formatnya sama dengan yang diharapkan fungsi UI kita
-        const formattedData = data.map(d => ({
-            id: d.id,
-            roundId: d.round_id,
-            hole: d.hole_number,
-            par: d.par,
-            strokes: d.strokes,
-            scoreTerm: d.score_term,
-            points: d.points
-        }));
-
-        localStorage.setItem('golf_tracks', JSON.stringify(formattedData));
-        updateSummaryUI(); // Update tabel scorecard kamu
+        console.error("Gagal memuat histori:", error.message);
+    } else {
+        console.log(`Berhasil memuat ${tracks.length} track untuk ${currentMerchantId}`);
+        // Panggil fungsi render UI Anda di sini
+        if (typeof renderHistoryUI === "function") renderHistoryUI(tracks);
     }
 }
 
