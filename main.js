@@ -1499,12 +1499,17 @@ checkAccess();
 
 // akses Xendit Payment
 async function startXenditPayment(userProfile) {
-    // 1. Ambil email dari auth
+    // 1. Deteksi Lapangan secara otomatis berdasarkan Domain
+    let merchantId = 'TGR'; // Default
+    if (window.location.hostname.includes('mvg')) {
+        merchantId = 'MVG';
+    }
+
+    // 2. Ambil email dari auth
     const { data: { user } } = await sb.auth.getUser();
     const userEmail = user?.email;
 
-    // 2. AMBIL ANON KEY ANDA (Copy dari Dashboard Supabase)
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsdGpyZmhicmVzd2FkemxleHpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjA4NjIsImV4cCI6MjA4NTY5Njg2Mn0.mS7QjBoWBS-xYZcAE--SaZHioJ_RqA57l_Bs5p6ppag"; 
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; // Pakai Key Anda
 
     if (!userEmail) {
         alert("Email tidak ditemukan. Silakan login kembali.");
@@ -1516,12 +1521,13 @@ async function startXenditPayment(userProfile) {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}` // Tambahkan baris ini
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
             },
             body: JSON.stringify({
                 userId: userProfile.id,
                 email: userEmail,
-                fullName: userProfile.full_name || "Golfer"
+                fullName: userProfile.full_name || "Golfer",
+                merchantId: merchantId // <--- SEKARANG INI TERKIRIM KE SUPABASE
             })
         });
 
@@ -1539,7 +1545,6 @@ async function startXenditPayment(userProfile) {
         alert("Gagal menghubungi server: " + err.message);
     }
 }
-
 
 // akses any device
 async function loadTracksFromCloud() {
@@ -1966,11 +1971,11 @@ function exportGroupPdf() {
 // Mengambil ID Lapangan dari Environment Variable Vercel
 // Gunakan Env Variable Vercel (NEXT_PUBLIC_MERCHANT_ID)
 
-const MERCHANT_ID = process.env.NEXT_PUBLIC_MERCHANT_ID; 
+//const MERCHANT_ID = process.env.NEXT_PUBLIC_MERCHANT_ID; 
 async function checkout() {
   const { data, error } = await supabase.functions.invoke('xendit-payment', {
     body: { 
-      merchantId: MERCHANT_ID, // Contoh: 'TGR'
+      merchantId: 'TGR', // Contoh: 'TGR'
       userId: user.id,
       email: user.email,
       fullName: user.user_metadata.full_name
