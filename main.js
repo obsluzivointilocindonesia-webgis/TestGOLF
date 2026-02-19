@@ -659,6 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
 //-----------------------------------------------
 document.getElementById('saveTrackBtn').addEventListener('click', async () => {
     const holeId = document.getElementById('holeSelect').value;
+    const currentMerchantId = window.location.hostname.includes('mvg') ? 'MVG' : 'TGR';
     if (!holeId) return alert("Select Hole # First");
     if (activePoints.length < 2) return alert("At least 2 points to save track");
 
@@ -729,19 +730,21 @@ document.getElementById('saveTrackBtn').addEventListener('click', async () => {
     localStorage.setItem('golf_tracks', JSON.stringify(allTracks));
 
     // 5. SIMPAN KE SUPABASE (MODIFIKASI SYNC)
-    if (currentUser) {
-        try {
-            const { error } = await sb
-                .from('tracks')
-                .insert([{
-                    user_id: currentUser.id,
-                    round_id: String(sessionRoundId), // INI KUNCI MULTIPLAYER
-                    hole_number: parseInt(newEntry.hole),
-                    par: newEntry.par,
-                    strokes: newEntry.strokes,
-                    score_term: newEntry.scoreTerm,
-                    points: newEntry.points 
-                }]);
+    // 5. SIMPAN KE SUPABASE (DENGAN MERCHANT_ID)
+if (currentUser) {
+    try {
+        const { error } = await sb
+            .from('tracks')
+            .insert([{
+                user_id: currentUser.id,
+                merchant_id: currentMerchantId, // <--- TAMBAHKAN INI
+                round_id: String(sessionRoundId),
+                hole_number: parseInt(newEntry.hole),
+                par: newEntry.par,
+                strokes: newEntry.strokes,
+                score_term: newEntry.scoreTerm,
+                points: newEntry.points 
+            }]);
 
             if (error) throw error;
             console.log("Synchronized to Supabase with Round ID:", sessionRoundId);
@@ -1303,16 +1306,19 @@ document.getElementById('focusGpsBtn').addEventListener('click', () => {
 async function saveScoreToCloud(hole, par, strokes, term) {
     if (!currentUser) return;
 
+    // Tambahkan deteksi merchant
+    const currentMerchantId = window.location.hostname.includes('mvg') ? 'MVG' : 'TGR';
+
     const { error } = await sb
         .from('tracks')
         .insert([{
             user_id: currentUser.id,
+            merchant_id: currentMerchantId, // <--- TAMBAHKAN INI
             round_id: localStorage.getItem('current_round_id'),
             hole_number: parseInt(hole),
             par: par,
             strokes: strokes,
             score_term: term,
-            // Masukkan koordinat GPS jika ada
             points: { lat: userLat, lon: userLon } 
         }]);
 
@@ -1334,41 +1340,49 @@ async function checkAccess() {
     // 1. DETEKSI MERCHANT ID
     const currentMerchantId = window.location.hostname.includes('mvg') ? 'MVG' : 'TGR';
 
-    // 2. AMBIL DATA PROFIL & SUBSCRIPTION
+    // 2. AMBIL DATA PROFIL (Untuk Trial) & SUBSCRIPTION (Untuk Akses)
     const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
     
+    // Query sekarang mengambil is_paid dan valid_until dari tabel subscriptions
     const { data: subscription } = await sb.from('subscriptions')
-        .select('*')
+        .select('is_paid, valid_until, status')
         .eq('user_id', session.user.id)
-        .eq('merchant_id', currentMerchantId) // Mengunci pengecekan hanya untuk lapangan ini
+        .eq('merchant_id', currentMerchantId) 
         .eq('status', 'ACTIVE')
         .maybeSingle();
 
     if (!profile) {
-        // ... (Kode insert profil baru tetap di sini) ...
+        // ... (Kode insert profil baru tetap di sini jika belum ada) ...
         return;
     }
 
     currentUser = profile;
     const today = new Date();
+    
+    // 3. LOGIKA TRIAL (Global berdasarkan umur akun di profiles)
     const joinDate = new Date(profile.created_at);
     const diffDays = Math.ceil((today - joinDate) / (1000 * 60 * 60 * 24));
-    
-    // 3. LOGIKA PENENTU AKSES
-    const isSubActive = subscription && new Date(subscription.valid_until) > today;
     const isTrialValid = diffDays <= 7;
+    
+    // 4. LOGIKA BERBAYAR (Spesifik per lapangan di tabel subscriptions)
+    // Cek apakah kolom is_paid TRUE dan valid_until masih berlaku
+    const isSubActive = subscription && 
+                        subscription.is_paid === true && 
+                        new Date(subscription.valid_until) > today;
 
+    // 5. KUNCI PINTU
     if (!isSubActive && !isTrialValid) {
         console.log(`Akses terkunci untuk ${currentMerchantId}.`);
-        // Pastikan nama fungsi di bawah ini sama dengan nama fungsi di bawah (lockUI)
         lockUI(session.user.email, currentMerchantId); 
     } else {
         console.log("Akses diberikan!");
         overlay.style.display = 'none';
         if (typeof loadTracksFromCloud === "function") loadTracksFromCloud();
         
+        // Update UI Badge
         const badge = document.getElementById('user-status-badge');
         if (badge) {
+            // Jika isSubActive TRUE, maka status PRO
             badge.textContent = isSubActive ? "PRO" : "TRIAL";
             badge.style.backgroundColor = isSubActive ? "#00ff88" : "#555";
         }
@@ -1383,14 +1397,13 @@ function lockUI(email, merchantId) {
     const title = document.getElementById('auth-title');
     const subtitle = document.getElementById('auth-subtitle');
     if (title) title.textContent = "Akses Terkunci";
-    if (subtitle) subtitle.innerHTML = `Masa trial habis. Silakan aktivasi khusus untuk lapangan <b>${merchantId}</b>`;
+    if (subtitle) subtitle.innerHTML = `Masa trial habis. Silakan aktivasi khusus untuk lapangan <b>${merchantId}</b> untuk melanjutkan.`;
     
-    // Sembunyikan input login agar fokus ke tombol bayar
     if (document.getElementById('auth-email')) document.getElementById('auth-email').style.display = 'none';
     if (document.getElementById('auth-pass')) document.getElementById('auth-pass').style.display = 'none';
     
     const btnContainer = document.getElementById('auth-primary-btn').parentElement;
-    btnContainer.innerHTML = ''; // Reset container
+    btnContainer.innerHTML = ''; 
 
     const btnXendit = document.createElement('button');
     btnXendit.className = "auth-btn";
@@ -1398,6 +1411,8 @@ function lockUI(email, merchantId) {
     btnXendit.style.color = "#000";
     btnXendit.style.fontWeight = "bold";
     btnXendit.textContent = `Activate ${merchantId} (Instant)`;
+    
+    // Saat diklik, startXenditPayment akan mengirimkan merchantId yang benar
     btnXendit.onclick = () => startXenditPayment(currentUser);
     btnContainer.appendChild(btnXendit);
 }
