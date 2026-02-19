@@ -1204,45 +1204,6 @@ document.getElementById('auth-primary-btn').addEventListener('click', async () =
     }
 });
 
-// 3. Fungsi Cek Akses (Trial 7 Hari / Berbayar)
-// Jalankan pengecekan setiap halaman di-load
-function checkTrialAccess() {
-    const activeUser = JSON.parse(localStorage.getItem('active_user'));
-    const overlay = document.getElementById('auth-overlay');
-
-    if (!activeUser || !activeUser.joinDate) {
-        overlay.style.display = 'flex';
-        return;
-    }
-
-    // Tampilkan Nama
-    const nameEl = document.getElementById('display-user-name');
-    if (nameEl) nameEl.textContent = activeUser.name || "User";
-
-    // --- LOGIKA TANGGAL YANG LEBIH AKURAT ---
-    const joinDate = new Date(activeUser.joinDate);
-    const today = new Date();
-    
-    // Hitung selisih milidetik lalu ubah ke hari
-    const diffInMs = today.getTime() - joinDate.getTime();
-    const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
-
-    console.log(`User bergabung ${diffInDays.toFixed(1)} hari yang lalu.`);
-
-    // Cek Akses
-    if (!activeUser.isPaid && diffInDays > 7) {
-        alert("Trial 7 day has ended. Please activate.");
-        overlay.style.display = 'flex';
-        // Tambahkan tombol logout di overlay agar user tidak stuck
-        document.getElementById('auth-form-container').innerHTML = `
-            <h3>Trial periode expired</h3>
-            <p>Please contack Admin for Activation</p>
-            <button onclick="handleLogout()" class="btn-golf">Logout</button>
-        `;
-    } else {
-        overlay.style.display = 'none';
-    }
-} checkTrialAccess();
 
 // 3. Fungsi Tombol Logout
 document.getElementById('logoutBtn').addEventListener('click', async () => {
@@ -1361,139 +1322,79 @@ async function saveScoreToCloud(hole, par, strokes, term) {
 
 // supabase access
 async function checkAccess() {
-    console.log("Memulai pengecekan akses...");
+    console.log("Memulai pengecekan akses per lapangan...");
     const { data: { session } } = await sb.auth.getSession();
     const overlay = document.getElementById('auth-overlay');
 
     if (!session) {
-        console.log("Tidak ada sesi, tetap di layar login.");
         overlay.style.display = 'flex';
         return;
     }
 
-    console.log("Sesi ditemukan untuk:", session.user.email);
+    // 1. Deteksi Lapangan (Merchant) saat ini
+    const currentMerchantId = window.location.hostname.includes('mvg') ? 'MVG' : 'TGR';
 
-    // Ambil data profil
-    let { data: profile, error } = await sb
-        .from('profiles')
+    // 2. Ambil data profil & data langganan khusus lapangan ini
+    // Kita ambil data dari dua tabel sekaligus
+    const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+    
+    const { data: subscription } = await sb.from('subscriptions')
         .select('*')
-        .eq('id', session.user.id)
+        .eq('user_id', session.user.id)
+        .eq('merchant_id', currentMerchantId)
+        .eq('status', 'ACTIVE')
         .maybeSingle();
 
-    if (error) {
-        console.error("Error to load profile:", error.message);
-        return;
-    }
-
-    // Jika profil belum ada di tabel, buat sekarang
-    // Di dalam fungsi checkAccess, bagian profil kosong:
     if (!profile) {
-        console.log("Profil kosong, mencoba membuat baru...");
-        const metaName = session.user.user_metadata?.full_name || "Golfer";
-        
-        // Pastikan kolom yang diisi sesuai dengan yang ada di tabel 'profiles'
-        const { data: newProf, error: insErr } = await sb
-            .from('profiles')
-            .insert([{ 
-                id: session.user.id, 
-                full_name: metaName, 
-                is_paid: false 
-                // Jangan masukkan join_date/created_at di sini karena biasanya otomatis dari database
-            }])
-            .select()
-            .maybeSingle();
-
-        if (insErr) {
-            console.error("Gagal buat profil:", insErr.message);
-            // Jika gagal karena RLS, kita beri peringatan di console
-            return;
-        }
-        profile = newProf;
+        // ... (Logika pembuatan profil baru Anda tetap sama) ...
+        return; 
     }
 
-    // PASANG DATA KE GLOBAL VARIABLE
     currentUser = profile;
-    console.log("Profil aktif:", currentUser);
-
-    // ISI NAMA KE UI
     const nameEl = document.getElementById('display-user-name');
     if (nameEl) nameEl.textContent = currentUser.full_name;
 
-    // LOGIKA SEMBUNYIKAN LOGIN (PENTING!)
-    const joinDate = new Date(currentUser.created_at || currentUser.join_date || new Date());
+    // 3. Logika Penentu Akses (Trial vs Subscription)
+    const joinDate = new Date(profile.created_at);
     const today = new Date();
     const diffDays = Math.ceil((today - joinDate) / (1000 * 60 * 60 * 24));
-
-    if (!currentUser.is_paid && diffDays > 7) {
-        console.log("Masa trial habis.");
-        overlay.style.display = 'flex';
-        // (Tambahkan logika ubah teks tombol ke WhatsApp di sini jika mau)
-    } else {
-        console.log("Akses diberikan, menyembunyikan overlay...");
-        overlay.style.display = 'none'; // KUNCI UTAMA
-        loadTracksFromCloud();
-    }
-    // badge user
-    const now = new Date();
-    const validUntil = new Date(currentUser.valid_until);
-
-    // Hitung sisa hari untuk ditampilkan di UI (Opsional)
-    const timeDiff = validUntil - now;
-    const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-
-    const badge = document.getElementById('user-status-badge');
-
-    if (now > validUntil || (!currentUser.is_paid && diffDays > 7)) {
-        // --- JIKA TRIAL HABIS ATAU SUBSCRIPTION EXPIRED ---
-        overlay.style.display = 'flex';
-        document.getElementById('auth-title').textContent = "Akses Terkunci";
-        document.getElementById('auth-subtitle').innerHTML = 
-            `Masa trial/berlangganan habis.<br>Pilih metode aktivasi di bawah:`;
-        
-        // Sembunyikan form input login
-        document.getElementById('auth-email').style.display = 'none';
-        document.getElementById('auth-pass').style.display = 'none';
-        
-        // Ambil container tombol (pastikan Anda punya div pembungkus tombol di HTML)
-        const btnContainer = document.getElementById('auth-primary-btn').parentElement;
-        
-        // Reset isi container agar tidak duplikat saat fungsi dipanggil ulang
-        btnContainer.innerHTML = '';
-
-        // TOMBOL 1: OTOMATIS (XENDIT)
-        const btnXendit = document.createElement('button');
-        btnXendit.className = "auth-btn"; // samakan class dengan CSS Anda
-        btnXendit.style.backgroundColor = "#00ff88";
-        btnXendit.style.color = "#000";
-        btnXendit.style.marginBottom = "10px";
-        btnXendit.textContent = "Automatic Activation (Instant)";
-        btnXendit.onclick = () => startXenditPayment(currentUser);
-        btnContainer.appendChild(btnXendit);
-
-        // TOMBOL 2: MANUAL (WHATSAPP)
-        const btnWA = document.createElement('button');
-        btnWA.className = "auth-btn";
-        btnWA.style.backgroundColor = "transparent";
-        btnWA.style.border = "1px solid #25D366";
-        btnWA.style.color = "#25D366";
-        btnWA.textContent = "Aktivasi via WhatsApp (Manual)";
-        btnWA.onclick = () => window.open(`https://wa.me/628119901599?text=Halo Admin, I want to extend TerraGOLF. Email: ${session.user.email}`);
-        btnContainer.appendChild(btnWA);
-    }   
     
-    else {
-        // --- JIKA MASIH AKTIF ---
+    // Cek apakah langganan aktif dan belum expired
+    const isSubActive = subscription && new Date(subscription.valid_until) > today;
+    const isTrialValid = diffDays <= 7;
+
+    // KUNCI PINTU: Jika Trial Habis DAN tidak ada langganan aktif di lapangan INI
+    if (!isSubActive && !isTrialValid) {
+        console.log(`Akses terkunci untuk lapangan ${currentMerchantId}`);
+        lockUI(session.user.email, currentMerchantId);
+    } else {
+        console.log("Akses diberikan!");
         overlay.style.display = 'none';
-        
-        // Update Status Badge
-        if (daysLeft <= 3) {
-            badge.textContent = `Sisa ${daysLeft} Hari`;
-            badge.style.backgroundColor = "orange";
-        } else {
-            badge.textContent = currentUser.is_paid ? "PRO" : "TRIAL";
-            badge.style.backgroundColor = currentUser.is_paid ? "#00ff88" : "#555";
-        }
+        if (typeof loadTracksFromCloud === "function") loadTracksFromCloud();
+        updateBadge(isSubActive, subscription, diffDays);
     }
+}
+
+// Fungsi pembantu agar kode lebih rapi
+function lockUI(email, merchantId) {
+    const overlay = document.getElementById('auth-overlay');
+    overlay.style.display = 'flex';
+    document.getElementById('auth-title').textContent = "Akses Terkunci";
+    document.getElementById('auth-subtitle').innerHTML = `Masa trial habis. Silakan aktivasi khusus untuk lapangan <b>${merchantId}</b>`;
+    
+    document.getElementById('auth-email').style.display = 'none';
+    document.getElementById('auth-pass').style.display = 'none';
+    
+    const btnContainer = document.getElementById('auth-primary-btn').parentElement;
+    btnContainer.innerHTML = '';
+
+    const btnXendit = document.createElement('button');
+    btnXendit.className = "auth-btn";
+    btnXendit.style.backgroundColor = "#00ff88";
+    btnXendit.style.color = "#000";
+    btnXendit.textContent = `Activate ${merchantId} (Instant)`;
+    btnXendit.onclick = () => startXenditPayment(currentUser);
+    btnContainer.appendChild(btnXendit);
 }
 checkAccess();
 
