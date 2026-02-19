@@ -1963,3 +1963,21 @@ function exportGroupPdf() {
 }
 
 //-----------------
+// Mengambil ID Lapangan dari Environment Variable Vercel
+// Gunakan Env Variable Vercel (NEXT_PUBLIC_MERCHANT_ID)
+
+const MERCHANT_ID = process.env.NEXT_PUBLIC_MERCHANT_ID; 
+async function checkout() {
+  const { data, error } = await supabase.functions.invoke('xendit-payment', {
+    body: { 
+      merchantId: MERCHANT_ID, // Contoh: 'TGR'
+      userId: user.id,
+      email: user.email,
+      fullName: user.user_metadata.full_name
+    }
+  });
+
+  if (data?.invoice_url) {
+    window.location.href = data.invoice_url;
+  }
+}
