@@ -1360,8 +1360,7 @@ async function checkAccess() {
             .insert([{ 
                 id: session.user.id, 
                 full_name: metaName,
-                // HAPUS kolom is_paid dan valid_until dari sini 
-                // karena kolom tersebut sudah kita DROP dari tabel profiles
+
             }])
             .select()
             .maybeSingle();
