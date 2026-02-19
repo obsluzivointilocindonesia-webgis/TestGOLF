@@ -859,17 +859,20 @@ function clearAll() {
 document.getElementById('historyBtn').addEventListener('click', async () => {
     if (!currentUser) {
         alert("Please login first.");
-        return; // Hentikan proses jika belum login
+        return;
     }
 
-    // Tampilkan loading sederhana (opsional)
-    console.log("Mengambil data untuk:", currentUser.id);
+    // 1. Deteksi Lapangan Saat Ini
+    const currentMerchantId = window.location.hostname.includes('mvg') ? 'MVG' : 'TGR';
 
-    // Ambil data terbaru dari Supabase
+    console.log(`Mengambil history untuk: ${currentUser.id} di lapangan ${currentMerchantId}`);
+
+    // 2. MODIFIKASI QUERY: Tambahkan filter merchant_id
     const { data: cloudTracks, error } = await sb
         .from('tracks')
         .select('*')
         .eq('user_id', currentUser.id)
+        .eq('merchant_id', currentMerchantId) // <--- KUNCI PEMISAH DATA
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -878,27 +881,28 @@ document.getElementById('historyBtn').addEventListener('click', async () => {
     }
 
     if (!cloudTracks || cloudTracks.length === 0) {
-        alert("No history saved in cloud.");
+        alert(`No history saved in ${currentMerchantId}.`);
         return;
     }
 
-    // Susun pesan untuk Prompt
-    let message = "Select history to show in the map (type number):\n";
+    // 3. Susun pesan untuk Prompt (Header pesan juga diperjelas)
+    let message = `Select history to show in the map - ${currentMerchantId} (type number):\n`;
     cloudTracks.forEach((t, index) => {
         const tDate = new Date(t.created_at).toLocaleString('id-ID');
         message += `${index + 1}. Hole ${t.hole_number} - ${tDate}\n`;
     });
 
     const choice = prompt(message);
+    if (choice === null) return; // User klik cancel
+
     const index = parseInt(choice) - 1;
     const selected = cloudTracks[index];
 
     if (selected) {
-        clearAll(); // Bersihkan peta dari titik aktif sebelumnya
+        clearAll(); 
 
-        // Loop melalui data 'points' (JSON) dari Supabase
+        // Loop melalui data 'points'
         selected.points.forEach(p => {
-            // Catatan: Pastikan nama properti koordinat (lat/lng/lng) sesuai dengan saat simpan
             const position = Cesium.Cartesian3.fromDegrees(p.lng || p.lon, p.lat, p.height || 0);
             
             const v = viewer.entities.add({
@@ -923,8 +927,10 @@ document.getElementById('historyBtn').addEventListener('click', async () => {
             `${selected.strokes} Strokes (${selected.score_term || 'N/A'}) - PAR ${selected.par}`;
         
         updateVisuals();
-        generateMultiPointProfile(activePoints); // Kirim semua titik (Default)
-        alert(`Load Track Hole ${selected.hole_number}`);
+        generateMultiPointProfile(activePoints); 
+        alert(`Load Track Hole ${selected.hole_number} (${currentMerchantId})`);
+    } else {
+        alert("Invalid number selection.");
     }
 });
 
