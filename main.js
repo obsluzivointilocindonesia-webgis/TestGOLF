@@ -58,7 +58,7 @@ async function init() {
 init();
 async function loadHoles() {
     try {
-        const holeResource = await Cesium.IonResource.fromAssetId(4408863);
+        const holeResource = await Cesium.IonResource.fromAssetId(4480561);
         const holeDataSource = await Cesium.GeoJsonDataSource.load(holeResource);
         await viewer.dataSources.add(holeDataSource);
 
@@ -81,13 +81,13 @@ async function loadHoles() {
             };
 
             entity.label = {
-                text: `HOLE ${entity.properties.HoleNo}\nPAR ${entity.properties.PAR}`,
+ 		        text: `HOLE ${entity.properties.HoleNo}\nPAR ${entity.properties.PAR}\nSI ${entity.properties.SI}`,
                 font: 'bold 16pt "Arial Black", Gadget, sans-serif',
                 fillColor: Cesium.Color.WHITE,
                 outlineColor: Cesium.Color.BLACK,
                 outlineWidth: 3,
                 style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                pixelOffset: new Cesium.Cartesian2(0, -50),
+                pixelOffset: new Cesium.Cartesian2(0, -60),
                 heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
                 disableDepthTestDistance: Number.POSITIVE_INFINITY
             };
