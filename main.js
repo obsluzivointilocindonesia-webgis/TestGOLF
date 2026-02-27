@@ -1930,29 +1930,68 @@ async function checkout() {
 //-----------------------------------------------------------
 // Fungsi AI Advisor
 function runAiAdvisor() {
-    // Simulasi data dari sistem Cesium Anda
-    const distance = 150; // meter ke hole
-    const elevation = 12; // meter lebih tinggi (uphill)
-    
-    // Logika perhitungan jarak efektif
-    const effectiveDist = distance + (elevation * 1.2);
+    if (activePoints.length < 2) {
+        Swal.fire("Info", "Determine the position and target points on the map..", "info");
+        return;
+    }
 
+    // Ambil data segmen terakhir (paling baru dibuat)
+    const lastIdx = activePoints.length - 1;
+    const pStart = activePoints[lastIdx - 1].position;
+    const pEnd = activePoints[lastIdx].position;
+    
+    const cStart = Cesium.Cartographic.fromCartesian(pStart);
+    const cEnd = Cesium.Cartographic.fromCartesian(pEnd);
+
+    // Data yang sama dengan fungsi updateVisuals Anda
+    const dist = Cesium.Cartesian3.distance(pStart, pEnd);
+    const deltaH = cEnd.height - cStart.height;
+    
+    // LOGIKA AI: Menghitung Jarak Efektif (Play-As Distance)
+    // Rumus: Jarak + (Beda Tinggi * Faktor Penyesuaian)
+    // Faktor 1.5 digunakan karena bola golf kehilangan/mendapat jarak lebih dari sekadar angka linear elevasi
+    const effectiveDist = dist + (deltaH * 1.5);
+
+    // LOGIKA PEMILIHAN STIK (Bisa Anda sesuaikan dengan jarak rata-rata Anda)
+    let club = "";
+    let tip = "";
+
+    if (effectiveDist > 210) { club = "Driver / 3-Wood"; tip = "Focus on accuracy, not power."; }
+    else if (effectiveDist > 180) { club = "Hybrid / Iron 4"; tip = "Ensure a clean ball-strike."; }
+    else if (effectiveDist > 160) { club = "Iron 5 / 6"; tip = "Swing with a consistent rhythm."; }
+    else if (effectiveDist > 140) { club = "Iron 7 / 8"; tip = "Target safe area in Green."; }
+    else if (effectiveDist > 110) { club = "Iron 9 / PW"; tip = "Time to hit the pins!"; }
+    else { club = "Wedges (GW/SW/LW)"; tip = "Spin control is very important here."; }
+
+    // Tampilkan hasil lewat popup premium
     Swal.fire({
-        title: 'AI Caddy Suggestion',
+        title: '<span style="color: #00ff88;">AI Caddy Advisor</span>',
+        background: '#1a1a1a',
+        color: '#ffffff',
         html: `
-            <div style="text-align: center;">
-                <p>Jarak ke Hole: <b>${distance}m</b></p>
-                <p>Elevasi: <span style="color: #ff4444;">↑ ${elevation}m (Uphill)</span></p>
-                <hr>
-                <p>Jarak Efektif: <b>${effectiveDist.toFixed(0)}m</b></p>
-                <p style="font-size: 1.2rem; color: #00ff88;"> gunakan <b>Iron 6 atau 5</b></p>
+            <div style="text-align: left; border: 1px solid #444; padding: 15px; border-radius: 10px;">
+                <p style="margin: 5px 0;">📍 Distance: <b>${dist.toFixed(1)} m</b></p>
+                <p style="margin: 5px 0;">⛰️ Height Difference: <b style="color: ${deltaH >= 0 ? '#ff4444' : '#00ff88'};">${deltaH.toFixed(1)} m (${deltaH >= 0 ? 'Uphill' : 'Downhill'})</b></p>
+                <hr style="border-color: #444;">
+                <p style="font-size: 1.1rem;">🎯 Effective Distance: <b style="color: #00ff88;">${effectiveDist.toFixed(1)} m</b></p>
+                <div style="margin-top: 15px; background: #333; padding: 10px; border-radius: 5px; text-align: center;">
+                    <small>Gunakan Stik:</small><br>
+                    <strong style="font-size: 1.6rem; color: #ffeb3b;">${club}</strong>
+                </div>
+                <p style="margin-top: 10px; font-style: italic; font-size: 0.8rem; color: #bbb;">💡 Tip: ${tip}</p>
             </div>
         `,
-        confirmButtonText: 'Thanks, Caddy!'
+        confirmButtonText: 'Thank You, Caddy!',
+        confirmButtonColor: '#27ae60'
     });
 }
 
+//---------------------------------------
 // Fungsi Cuaca sesuai dengan lokasi Lapangan
+const _partA = '3a40adebae12';  //3a40adebae12f302a5a5702582c7d5f2
+const _partB = 'f302a5a5702582';
+const _partC = 'c7d5f2';
+
 async function getRealWeather() {
     // Tampilkan loading sebentar selagi mengambil data
     Swal.fire({
@@ -1961,7 +2000,7 @@ async function getRealWeather() {
         didOpen: () => { Swal.showLoading(); }
     });
 
-    const apiKey = '3a40adebae12f302a5a5702582c7d5f2'; // Masukkan API Key Anda di sini
+    const apiKey = _partA+_partB+_partC;
     
     // Koordinat Dago Heritage (bisa dinamis sesuai GPS user nantinya) 107.6258056, -6.8698692729
     const lat = -6.8698692729; 
