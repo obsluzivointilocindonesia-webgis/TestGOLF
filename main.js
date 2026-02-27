@@ -6,7 +6,7 @@ const supabaseUrl = 'https://jltjrfhbreswadzlexzg.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsdGpyZmhicmVzd2FkemxleHpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjA4NjIsImV4cCI6MjA4NTY5Njg2Mn0.mS7QjBoWBS-xYZcAE--SaZHioJ_RqA57l_Bs5p6ppag';
 const sb = supabase.createClient(supabaseUrl, supabaseKey);
 
-Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxYjJiNmQzZC1hNTc0LTRhM2MtYjI2Yy1jZmQ2ZTZmNzY0YTMiLCJpZCI6Mzg0MjAyLCJpYXQiOjE3NzAzOTYwNzF9.YfLtke7hqAh66vLe_iaVxqCt8iB9PFTUk5GXSgVpq6c"
+Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzY2ZhMGQ3MS1mYzYwLTQ1NzktODY1Mi1lODRhZjRmMWE4Y2EiLCJpZCI6Mzg0MjAyLCJpYXQiOjE3Njk1Njg5ODJ9.5U2zZd_um-3-iYrpnfZg1Xt7eI7N_CPTCQHoa2xB0jQ"
 const viewer = new Cesium.Viewer('cesiumContainer', {
     homeButton: false,
     fullscreenButton: false,
@@ -1923,4 +1923,147 @@ async function checkout() {
   if (data?.invoice_url) {
     window.location.href = data.invoice_url;
   }
+}
+
+//---------------------------Versi 2 --------------------------
+// Tambah FUngsi-Fungsi
+//-----------------------------------------------------------
+// Fungsi AI Advisor
+function runAiAdvisor() {
+    // Simulasi data dari sistem Cesium Anda
+    const distance = 150; // meter ke hole
+    const elevation = 12; // meter lebih tinggi (uphill)
+    
+    // Logika perhitungan jarak efektif
+    const effectiveDist = distance + (elevation * 1.2);
+
+    Swal.fire({
+        title: 'AI Caddy Suggestion',
+        html: `
+            <div style="text-align: center;">
+                <p>Jarak ke Hole: <b>${distance}m</b></p>
+                <p>Elevasi: <span style="color: #ff4444;">↑ ${elevation}m (Uphill)</span></p>
+                <hr>
+                <p>Jarak Efektif: <b>${effectiveDist.toFixed(0)}m</b></p>
+                <p style="font-size: 1.2rem; color: #00ff88;"> gunakan <b>Iron 6 atau 5</b></p>
+            </div>
+        `,
+        confirmButtonText: 'Thanks, Caddy!'
+    });
+}
+
+// Fungsi Cuaca sesuai dengan lokasi Lapangan
+async function getRealWeather() {
+    // Tampilkan loading sebentar selagi mengambil data
+    Swal.fire({
+        title: 'Retrieving weather data...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
+    const apiKey = '3a40adebae12f302a5a5702582c7d5f2'; // Masukkan API Key Anda di sini
+    
+    // Koordinat Dago Heritage (bisa dinamis sesuai GPS user nantinya) 107.6258056, -6.8698692729
+    const lat = -6.8698692729; 
+    const lon = 107.6258056;
+
+    try {
+        const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=id`);
+        const data = await response.json();
+
+        if (response.ok) {
+            const windSpeed = (data.wind.speed * 3.6).toFixed(1); // Konversi m/s ke km/jam
+            const windDeg = data.wind.deg; // Arah angin dalam derajat
+            const temp = data.main.temp;
+            const humidity = data.main.humidity;
+            const desc = data.weather[0].description;
+
+            Swal.fire({
+                title: 'Condition of Dago Heritage',
+                html: `
+                    <div style="text-align: left; font-size: 0.9rem;">
+                        <p>🌤️ <b>Condition:</b> ${desc}</p>
+                        <p>🌡️ <b>Temperature:</b> ${temp}°C</p>
+                        <p>🌬️ <b>Wind Speed:</b> ${windSpeed} km/jam</p>
+                        <p>🧭 <b>Wind Direction:</b> ${windDeg}° (from North)</p>
+                        <p>💧 <b>Humidity:</b> ${humidity}%</p>
+                        <hr>
+                        <small style="color: #666;">*Data update otomatis via OpenWeather</small>
+                    </div>
+                `,
+                icon: 'success',
+                confirmButtonColor: '#27ae60'
+            });
+        } else {
+            throw new Error(data.message);
+        }
+    } catch (error) {
+        Swal.fire('Gagal', 'Tidak dapat mengambil data cuaca: ' + error.message, 'error');
+    }
+}
+
+//----------------------compas
+//
+let compassActive = false;
+
+function toggleCompass() {
+    if (!compassActive) {
+        startCompass();
+        compassActive = true;
+        document.getElementById('compassBtn').style.borderColor = '#00ff88';
+    } else {
+        stopCompass();
+        compassActive = false;
+        document.getElementById('compassBtn').style.borderColor = '#444';
+        document.getElementById('compassIcon').style.transform = 'rotate(0deg)';
+        document.getElementById('directionText').innerText = 'N';
+    }
+}
+
+function startCompass() {
+    // Meminta izin sensor untuk perangkat iOS
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+            .then(response => {
+                if (response == 'granted') {
+                    window.addEventListener('deviceorientation', handleOrientation);
+                }
+            })
+            .catch(console.error);
+    } else {
+        // Untuk Android atau browser non-iOS
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+        window.addEventListener('deviceorientation', handleOrientation, true);
+    }
+}
+
+function handleOrientation(event) {
+    let compass;
+    
+    // Logika untuk mendeteksi derajat arah
+    if (event.webkitCompassHeading) {
+        // iOS
+        compass = event.webkitCompassHeading;
+    } else {
+        // Android (360 - alpha)
+        compass = 360 - event.alpha;
+    }
+
+    if (compass) {
+        const icon = document.getElementById('compassIcon');
+        const text = document.getElementById('directionText');
+        
+        // Putar ikon kompas berlawanan arah agar jarum selalu menunjuk Utara
+        icon.style.transform = `rotate(${-compass}deg)`;
+
+        // Ubah teks label sesuai arah
+        const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+        const index = Math.round(compass / 45) % 8;
+        text.innerText = directions[index];
+    }
+}
+
+function stopCompass() {
+    window.removeEventListener('deviceorientation', handleOrientation);
+    window.removeEventListener('deviceorientationabsolute', handleOrientation);
 }

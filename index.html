@@ -66,10 +66,24 @@
         </div>
     </div>
 
-<button id="backToWebBtn" class="back-btn">
-    ← Back To Web
-</button>
+<div id="top-toolbar" style="position: fixed; top: 15px; left: 15px; display: flex; gap: 8px; z-index: 1010; align-items: center;">
+    
+    <button id="backToWebBtn" class="back-btn" style="margin: 0; position: static;">
+        ← Back
+    </button>
 
+    <button id="weatherBtn" class="top-tool-btn" onclick="getRealWeather()">
+    🌤️ <span class="btn-label">Weather</span>
+    </button>   
+
+    <button id="compassBtn" class="top-tool-btn" onclick="toggleCompass()">
+        🧭 <span class="btn-label">N</span>
+    </button>
+
+    <button id="aiCaddyBtn" class="top-tool-btn ai-pulse" onclick="runAiAdvisor()">
+        🤖 <span class="btn-label">AI Caddy</span>
+    </button>
+</div>
 
 
 <div id="auth-overlay" class="auth-box">
