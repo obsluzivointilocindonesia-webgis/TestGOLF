@@ -2078,7 +2078,7 @@ function handleOrientation(event) {
         text.innerText = directions[index];
         
         // DEBUG: Hapus baris ini jika sudah jalan
-        // console.log("Heading:", roundedHeading);
+        console.log("Heading:", roundedHeading);
     }
 }
 
