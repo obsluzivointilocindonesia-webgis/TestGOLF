@@ -2021,45 +2021,64 @@ function toggleCompass() {
 }
 
 function startCompass() {
-    // Meminta izin sensor untuk perangkat iOS
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        // KHUSUS iOS
         DeviceOrientationEvent.requestPermission()
             .then(response => {
                 if (response == 'granted') {
-                    window.addEventListener('deviceorientation', handleOrientation);
+                    window.addEventListener('deviceorientation', handleOrientation, true);
+                } else {
+                    Swal.fire("Izin Ditolak", "Akses sensor arah dibutuhkan untuk kompas.", "warning");
                 }
             })
-            .catch(console.error);
+            .catch(err => {
+                console.error(err);
+                Swal.fire("Error", "Sensor tidak didukung di perangkat ini.", "error");
+            });
     } else {
-        // Untuk Android atau browser non-iOS
-        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-        window.addEventListener('deviceorientation', handleOrientation, true);
+        // ANDROID & LAINNYA
+        // Gunakan 'deviceorientationabsolute' jika tersedia untuk akurasi magnetik
+        if ('ondeviceorientationabsolute' in window) {
+            window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+        } else {
+            window.addEventListener('deviceorientation', handleOrientation, true);
+        }
     }
 }
 
 function handleOrientation(event) {
-    let compass;
-    
-    // Logika untuk mendeteksi derajat arah
+    let heading = null;
+
+    // 1. Coba deteksi standar iOS
     if (event.webkitCompassHeading) {
-        // iOS
-        compass = event.webkitCompassHeading;
-    } else {
-        // Android (360 - alpha)
-        compass = 360 - event.alpha;
+        heading = event.webkitCompassHeading;
+    } 
+    // 2. Coba deteksi standar Android (Absolute)
+    else if (event.absolute === true && event.alpha !== null) {
+        heading = 360 - event.alpha;
+    }
+    // 3. Fallback jika alpha tersedia tapi tidak absolute
+    else if (event.alpha !== null) {
+        heading = 360 - event.alpha;
     }
 
-    if (compass) {
+    if (heading !== null) {
         const icon = document.getElementById('compassIcon');
         const text = document.getElementById('directionText');
         
-        // Putar ikon kompas berlawanan arah agar jarum selalu menunjuk Utara
-        icon.style.transform = `rotate(${-compass}deg)`;
+        // Membulatkan angka untuk performa lebih ringan
+        const roundedHeading = Math.round(heading);
+        
+        // Putar ikon
+        icon.style.transform = `rotate(${-roundedHeading}deg)`;
 
-        // Ubah teks label sesuai arah
+        // Update teks arah
         const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-        const index = Math.round(compass / 45) % 8;
+        const index = Math.round(roundedHeading / 45) % 8;
         text.innerText = directions[index];
+        
+        // DEBUG: Hapus baris ini jika sudah jalan
+        // console.log("Heading:", roundedHeading);
     }
 }
 
@@ -2067,3 +2086,5 @@ function stopCompass() {
     window.removeEventListener('deviceorientation', handleOrientation);
     window.removeEventListener('deviceorientationabsolute', handleOrientation);
 }
+
+//-------------end compas ----------------------------
