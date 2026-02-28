@@ -1929,13 +1929,35 @@ async function checkout() {
 // Tambah FUngsi-Fungsi
 //-----------------------------------------------------------
 // Fungsi AI Advisor
+// 1. Fungsi Pencari Stik (Helper)
+function getClubRecommendation(effectiveDist) {
+    const clubs = [
+        { name: "Driver", min: 210, max: 1000, tip: "Fokus pada akurasi, bukan tenaga." },
+        { name: "3-Wood", min: 190, max: 210, tip: "Gunakan jika fairway cukup lebar." },
+        { name: "Hybrid", min: 175, max: 190, tip: "Pastikan ball-strike yang bersih." },
+        { name: "Iron 4", min: 165, max: 175, tip: "Penetrasi udara rendah, cocok untuk angin kencang." },
+        { name: "Iron 5", min: 155, max: 165, tip: "Ayunkan dengan ritme yang konsisten." },
+        { name: "Iron 6", min: 145, max: 155, tip: "Kontrol arah lebih utama dari jarak." },
+        { name: "Iron 7", min: 135, max: 145, tip: "Targetkan area aman di Green." },
+        { name: "Iron 8", min: 125, max: 135, tip: "Gunakan untuk flight bola yang lebih tinggi." },
+        { name: "Iron 9", min: 115, max: 125, tip: "Waktunya menyerang pin!" },
+        { name: "Pitching Wedge", min: 100, max: 115, tip: "Kontrol kekuatan swing Anda." },
+        { name: "Gap Wedge", min: 85, max: 100, tip: "Cari pendaratan di dekat hole." },
+        { name: "Sand Wedge", min: 70, max: 85, tip: "Fokus pada landing spot." },
+        { name: "Lob Wedge", min: 0, max: 70, tip: "Kontrol spin sangat penting di sini." }
+    ];
+
+    const suggestion = clubs.find(c => effectiveDist >= c.min && effectiveDist < c.max);
+    return suggestion ? suggestion : { name: "Putter", tip: "Gunakan jika bola sudah di tepi green." };
+}
+
+// 2. Fungsi Utama AI Advisor yang digabung
 function runAiAdvisor() {
     if (activePoints.length < 2) {
-        Swal.fire("Info", "Determine the position and target points on the map..", "info");
+        Swal.fire("Info", "Tentukan dulu titik posisi dan target pada peta.", "info");
         return;
     }
 
-    // Ambil data segmen terakhir (paling baru dibuat)
     const lastIdx = activePoints.length - 1;
     const pStart = activePoints[lastIdx - 1].position;
     const pEnd = activePoints[lastIdx].position;
@@ -1943,45 +1965,33 @@ function runAiAdvisor() {
     const cStart = Cesium.Cartographic.fromCartesian(pStart);
     const cEnd = Cesium.Cartographic.fromCartesian(pEnd);
 
-    // Data yang sama dengan fungsi updateVisuals Anda
     const dist = Cesium.Cartesian3.distance(pStart, pEnd);
     const deltaH = cEnd.height - cStart.height;
     
-    // LOGIKA AI: Menghitung Jarak Efektif (Play-As Distance)
-    // Rumus: Jarak + (Beda Tinggi * Faktor Penyesuaian)
-    // Faktor 1.5 digunakan karena bola golf kehilangan/mendapat jarak lebih dari sekadar angka linear elevasi
+    // Hitung Jarak Efektif
     const effectiveDist = dist + (deltaH * 1.5);
 
-    // LOGIKA PEMILIHAN STIK (Bisa Anda sesuaikan dengan jarak rata-rata Anda)
-    let club = "";
-    let tip = "";
+    // MEMANGGIL FUNGSI REKOMENDASI (Pengganti if-else)
+    const recommendation = getClubRecommendation(effectiveDist);
 
-    if (effectiveDist > 210) { club = "Driver / 3-Wood"; tip = "Focus on accuracy, not power."; }
-    else if (effectiveDist > 180) { club = "Hybrid / Iron 4"; tip = "Ensure a clean ball-strike."; }
-    else if (effectiveDist > 160) { club = "Iron 5 / 6"; tip = "Swing with a consistent rhythm."; }
-    else if (effectiveDist > 140) { club = "Iron 7 / 8"; tip = "Target safe area in Green."; }
-    else if (effectiveDist > 110) { club = "Iron 9 / PW"; tip = "Time to hit the pins!"; }
-    else { club = "Wedges (GW/SW/LW)"; tip = "Spin control is very important here."; }
-
-    // Tampilkan hasil lewat popup premium
     Swal.fire({
         title: '<span style="color: #00ff88;">AI Caddy Advisor</span>',
         background: '#1a1a1a',
         color: '#ffffff',
         html: `
             <div style="text-align: left; border: 1px solid #444; padding: 15px; border-radius: 10px;">
-                <p style="margin: 5px 0;">📍 Distance: <b>${dist.toFixed(1)} m</b></p>
-                <p style="margin: 5px 0;">⛰️ Height Difference: <b style="color: ${deltaH >= 0 ? '#ff4444' : '#00ff88'};">${deltaH.toFixed(1)} m (${deltaH >= 0 ? 'Uphill' : 'Downhill'})</b></p>
+                <p style="margin: 5px 0;">📍 Jarak Langsung: <b>${dist.toFixed(1)} m</b></p>
+                <p style="margin: 5px 0;">⛰️ Beda Tinggi: <b style="color: ${deltaH >= 0 ? '#ff4444' : '#00ff88'};">${deltaH.toFixed(1)} m (${deltaH >= 0 ? 'Tanjakan' : 'Turunan'})</b></p>
                 <hr style="border-color: #444;">
-                <p style="font-size: 1.1rem;">🎯 Effective Distance: <b style="color: #00ff88;">${effectiveDist.toFixed(1)} m</b></p>
+                <p style="font-size: 1.1rem;">🎯 Jarak Efektif: <b style="color: #00ff88;">${effectiveDist.toFixed(1)} m</b></p>
                 <div style="margin-top: 15px; background: #333; padding: 10px; border-radius: 5px; text-align: center;">
                     <small>Gunakan Stik:</small><br>
-                    <strong style="font-size: 1.6rem; color: #ffeb3b;">${club}</strong>
+                    <strong style="font-size: 1.6rem; color: #ffeb3b;">${recommendation.name}</strong>
                 </div>
-                <p style="margin-top: 10px; font-style: italic; font-size: 0.8rem; color: #bbb;">💡 Tip: ${tip}</p>
+                <p style="margin-top: 10px; font-style: italic; font-size: 0.8rem; color: #bbb;">💡 Tip: ${recommendation.tip}</p>
             </div>
         `,
-        confirmButtonText: 'Thank You, Caddy!',
+        confirmButtonText: 'Terima Kasih, Caddy!',
         confirmButtonColor: '#27ae60'
     });
 }
@@ -2043,87 +2053,71 @@ async function getRealWeather() {
 
 //----------------------compas
 //
-let compassActive = false;
+let isCompassRunning = false;
 
-function toggleCompass() {
-    if (!compassActive) {
-        startCompass();
-        compassActive = true;
-        document.getElementById('compassBtn').style.borderColor = '#00ff88';
+function startCompass() {
+    if (!window.DeviceOrientationEvent) {
+        Swal.fire("Error", "Perangkat tidak mendukung sensor arah.", "error");
+        return;
+    }
+
+    // Request permission untuk iOS 13+
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+            .then(permissionState => {
+                if (permissionState === 'granted') {
+                    activateListeners();
+                }
+            })
+            .catch(err => console.error("iOS Permission Error:", err));
     } else {
-        stopCompass();
-        compassActive = false;
-        document.getElementById('compassBtn').style.borderColor = '#444';
-        document.getElementById('compassIcon').style.transform = 'rotate(0deg)';
-        document.getElementById('directionText').innerText = 'N';
+        // Android dan browser lain
+        activateListeners();
     }
 }
 
-function startCompass() {
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-        // KHUSUS iOS
-        DeviceOrientationEvent.requestPermission()
-            .then(response => {
-                if (response == 'granted') {
-                    window.addEventListener('deviceorientation', handleOrientation, true);
-                } else {
-                    Swal.fire("Izin Ditolak", "Akses sensor arah dibutuhkan untuk kompas.", "warning");
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                Swal.fire("Error", "Sensor tidak didukung di perangkat ini.", "error");
-            });
+function activateListeners() {
+    // Android Chrome seringkali hanya mengirim data lewat event 'deviceorientationabsolute'
+    if ('ondeviceorientationabsolute' in window) {
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
     } else {
-        // ANDROID & LAINNYA
-        // Gunakan 'deviceorientationabsolute' jika tersedia untuk akurasi magnetik
-        if ('ondeviceorientationabsolute' in window) {
-            window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-        } else {
-            window.addEventListener('deviceorientation', handleOrientation, true);
-        }
+        window.addEventListener('deviceorientation', handleOrientation, true);
     }
+    isCompassRunning = true;
+    console.log("Compass listeners activated");
 }
 
 function handleOrientation(event) {
-    let heading = null;
+    let heading = 0;
 
-    // 1. Coba deteksi standar iOS
+    // Cek data dari iOS
     if (event.webkitCompassHeading) {
         heading = event.webkitCompassHeading;
     } 
-    // 2. Coba deteksi standar Android (Absolute)
-    else if (event.absolute === true && event.alpha !== null) {
-        heading = 360 - event.alpha;
-    }
-    // 3. Fallback jika alpha tersedia tapi tidak absolute
+    // Cek data dari Android (alpha adalah rotasi z-axis)
     else if (event.alpha !== null) {
+        // Untuk Android, alpha biasanya dimulai dari 0 saat aplikasi dibuka.
+        // Jika event.absolute true, maka 0 adalah Utara sejati.
         heading = 360 - event.alpha;
     }
 
-    if (heading !== null) {
+    if (heading !== 0) {
         const icon = document.getElementById('compassIcon');
         const text = document.getElementById('directionText');
         
-        // Membulatkan angka untuk performa lebih ringan
-        const roundedHeading = Math.round(heading);
-        
-        // Putar ikon
-        icon.style.transform = `rotate(${-roundedHeading}deg)`;
+        // Update rotasi ikon
+        icon.style.transform = `rotate(${-heading}deg)`;
 
-        // Update teks arah
+        // Update teks label
         const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-        const index = Math.round(roundedHeading / 45) % 8;
+        const index = Math.round(heading / 45) % 8;
         text.innerText = directions[index];
-        
-        // DEBUG: Hapus baris ini jika sudah jalan
-        console.log("Heading:", roundedHeading);
     }
 }
 
-function stopCompass() {
-    window.removeEventListener('deviceorientation', handleOrientation);
-    window.removeEventListener('deviceorientationabsolute', handleOrientation);
-}
+//function stopCompass() {
+//    window.removeEventListener('deviceorientation', handleOrientation);
+//    window.removeEventListener('deviceorientationabsolute', handleOrientation);
+//}
 
 //-------------end compas ----------------------------
