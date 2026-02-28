@@ -2115,9 +2115,9 @@ function handleOrientation(event) {
     }
 }
 
-//function stopCompass() {
-//    window.removeEventListener('deviceorientation', handleOrientation);
-//    window.removeEventListener('deviceorientationabsolute', handleOrientation);
-//}
+function stopCompass() {
+    window.removeEventListener('deviceorientation', handleOrientation);
+    window.removeEventListener('deviceorientationabsolute', handleOrientation);
+}
 
 //-------------end compas ----------------------------
