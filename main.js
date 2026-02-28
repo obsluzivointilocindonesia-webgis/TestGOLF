@@ -2,11 +2,12 @@
 //tambahan untuk supabase
 let currentUser = null;
 let userLat = 0, userLon = 0;
+let playerHCPs = {}; // Menyimpan { "Nama Pemain": nilai_hcp }
 const supabaseUrl = 'https://jltjrfhbreswadzlexzg.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsdGpyZmhicmVzd2FkemxleHpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjA4NjIsImV4cCI6MjA4NTY5Njg2Mn0.mS7QjBoWBS-xYZcAE--SaZHioJ_RqA57l_Bs5p6ppag';
 const sb = supabase.createClient(supabaseUrl, supabaseKey);
 
-Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzY2ZhMGQ3MS1mYzYwLTQ1NzktODY1Mi1lODRhZjRmMWE4Y2EiLCJpZCI6Mzg0MjAyLCJpYXQiOjE3Njk1Njg5ODJ9.5U2zZd_um-3-iYrpnfZg1Xt7eI7N_CPTCQHoa2xB0jQ"
+Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxYjJiNmQzZC1hNTc0LTRhM2MtYjI2Yy1jZmQ2ZTZmNzY0YTMiLCJpZCI6Mzg0MjAyLCJpYXQiOjE3NzAzOTYwNzF9.YfLtke7hqAh66vLe_iaVxqCt8iB9PFTUk5GXSgVpq6c"
 const viewer = new Cesium.Viewer('cesiumContainer', {
     homeButton: false,
     fullscreenButton: false,
@@ -1098,94 +1099,128 @@ document.getElementById('viewDetailBtn').addEventListener('click', async () => {
 // 2. Tombol Export PDF
 // Saat tombol PDF diklik
 document.getElementById('exportPdfBtn').addEventListener('click', async () => {
-    // 1. Tarik data terbaru dulu
-    await fetchGroupScores();
+    Swal.fire({ title: 'Menyiapkan PDF...', didOpen: () => { Swal.showLoading(); } });
 
-    // 2. Siapkan tabel PDF
+    await fetchGroupScores(); // Ambil data terbaru dari DB
     const ready = prepareHiddenPdfTable();
 
     if (ready) {
         const element = document.getElementById('pdf-report-hidden');
-        element.style.display = 'block'; // Tampilkan sebentar agar ter-render
+        element.style.display = 'block'; 
 
         const opt = {
-            margin:       0.5,
+            margin:       [0.3, 0.3, 0.3, 0.3],
             filename:     `TerraGOLF_${currentSyncRoundId}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2 },
-            jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+            html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+            jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
         };
 
-        html2pdf().set(opt).from(element).save().then(() => {
-            element.style.display = 'none'; // Sembunyikan lagi
-        });
+        // Tambahkan delay kecil agar render HTML selesai sempurna
+        setTimeout(() => {
+            html2pdf().set(opt).from(element).save().then(() => {
+                element.style.display = 'none';
+                Swal.close();
+            });
+        }, 500);
     } else {
-        alert("Gagal menyiapkan data PDF. Pastikan data skor sudah masuk.");
+        Swal.fire('Error', 'Gagal menyiapkan data PDF. Pastikan data skor tersedia.', 'error');
     }
 });
 
 // FUNGSI TABEL VERTIKAL SEMBUNYI
 function prepareHiddenPdfTable() {
-    if (!groupData || groupData.length === 0) return false;
+    // Cek apakah data sudah ada
+    if (!groupData || groupData.length === 0) {
+        console.error("Data groupData kosong");
+        return false;
+    }
 
     const tbody = document.getElementById('table-body-detail-pdf');
     const thead = document.querySelector('#pdf-report-hidden table thead');
     const pdfRoundIdElem = document.getElementById('pdf-round-id');
     
-    if (!tbody || !thead) return false;
+    // Pastikan elemen HTML tujuan ada
+    if (!tbody || !thead) {
+        console.error("Elemen tabel PDF tidak ditemukan di DOM");
+        return false;
+    }
 
-    // 1. Set Round ID di Header PDF
     if (pdfRoundIdElem) {
         pdfRoundIdElem.textContent = currentSyncRoundId || "Personal Round";
     }
 
     const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Golfer'))];
     let playerTotals = players.map(() => 0);
-    let totalParAccumulator = 0; // Variabel penampung Total PAR
+    let totalParAccumulator = 0;
 
-    // 2. Render Header PDF
+    // Ambil mapping HCP per pemain
+    let playerHcpMap = {};
+    players.forEach(p => {
+        const pData = groupData.find(d => d.profiles?.full_name === p);
+        playerHcpMap[p] = pData ? (pData.profiles?.hcp || 0) : 0;
+    });
+
+    // 1. Render Header (Gunakan font lebih kecil agar muat)
     thead.innerHTML = `
         <tr style="background: #1a472a; color: white;">
-            <th style="border: 1px solid #ddd; padding: 8px;">Hole</th>
-            <th style="border: 1px solid #ddd; padding: 8px;">PAR</th>
-            ${players.map(p => `<th style="border: 1px solid #ddd; padding: 8px;">${p}</th>`).join('')}
+            <th style="border: 1px solid #ddd; padding: 5px; font-size: 9px;">Hole</th>
+            <th style="border: 1px solid #ddd; padding: 5px; font-size: 9px;">PAR</th>
+            ${players.map(p => `<th style="border: 1px solid #ddd; padding: 5px; font-size: 9px;">${p}</th>`).join('')}
         </tr>
     `;
 
-    // 3. Render Baris Hole 1 - 18
+    // 2. Render Baris Hole 1 - 18
     let rowsHtml = "";
     for (let h = 1; h <= 18; h++) {
         const holeEntries = groupData.filter(s => s.hole_number === h);
         const parVal = holeEntries.length > 0 ? parseInt(holeEntries[0].par) : 0;
-        
-        // Tambahkan ke total PAR
         totalParAccumulator += parVal;
 
         rowsHtml += `<tr>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${h}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${parVal || '-'}</td>`;
+            <td style="border: 1px solid #ddd; padding: 3px; text-align: center; font-size: 9px;">${h}</td>
+            <td style="border: 1px solid #ddd; padding: 3px; text-align: center; font-size: 9px;">${parVal || '-'}</td>`;
 
         players.forEach((p, index) => {
             const pScore = groupData.find(s => s.hole_number === h && s.profiles?.full_name === p);
             const strokes = pScore ? parseInt(pScore.strokes) : 0;
             playerTotals[index] += strokes;
-            rowsHtml += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${strokes || '-'}</td>`;
+            rowsHtml += `<td style="border: 1px solid #ddd; padding: 3px; text-align: center; font-size: 9px;">${strokes || '-'}</td>`;
         });
-
         rowsHtml += `</tr>`;
     }
 
-    // 4. Tambahkan Baris TOTAL di paling bawah (Termasuk Total PAR)
+    // 3. Tambahkan Baris GROSS
     rowsHtml += `
         <tr style="background: #f2f2f2; font-weight: bold;">
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">TOTAL</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${totalParAccumulator}</td>
-            ${playerTotals.map(t => `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${t}</td>`).join('')}
+            <td style="border: 1px solid #ddd; padding: 5px; text-align: center; font-size: 9px;">GROSS</td>
+            <td style="border: 1px solid #ddd; padding: 5px; text-align: center; font-size: 9px;">${totalParAccumulator}</td>
+            ${playerTotals.map(t => `<td style="border: 1px solid #ddd; padding: 5px; text-align: center; font-size: 9px;">${t}</td>`).join('')}
+        </tr>`;
+
+    // 4. Tambahkan Baris HCP (Warna Kuning Lembut)
+    rowsHtml += `
+        <tr style="background: #fffdf0;">
+            <td style="border: 1px solid #ddd; padding: 5px; text-align: center; font-size: 9px; color: #856404;">HCP</td>
+            <td style="border: 1px solid #ddd; padding: 5px; text-align: center; font-size: 9px;">-</td>
+            ${players.map(p => `<td style="border: 1px solid #ddd; padding: 5px; text-align: center; font-size: 9px; color: #856404;">(${playerHcpMap[p]})</td>`).join('')}
+        </tr>`;
+
+    // 5. Tambahkan Baris NET (Warna Hijau Lembut)
+    rowsHtml += `
+        <tr style="background: #d4edda; font-weight: bold;">
+            <td style="border: 1px solid #ddd; padding: 5px; text-align: center; font-size: 10px; color: #155724;">NET</td>
+            <td style="border: 1px solid #ddd; padding: 5px; text-align: center; font-size: 10px;">-</td>
+            ${playerTotals.map((t, idx) => {
+                const net = t - playerHcpMap[players[idx]];
+                return `<td style="border: 1px solid #ddd; padding: 5px; text-align: center; font-size: 10px; color: #155724;">${net}</td>`;
+            }).join('')}
         </tr>`;
 
     tbody.innerHTML = rowsHtml;
     return true;
 }
+
 
 //-----------------------------------------
 // REGISTER
@@ -1569,7 +1604,6 @@ function setNavButtonsDisplay(status) {
     });
 }
 
-// Cetak Histori Berdasarkan ROUND
 // 1. Fungsi Utama Cetak (Pastikan nama tabel sesuai database: 'trackers')
 async function printRoundFromSupabase(targetRoundId) {
     try {
@@ -1761,14 +1795,47 @@ async function syncMultiplayer() {
     const inputId = document.getElementById('roundIdInput').value;
     if (!inputId) return Swal.fire('Info', 'Masukkan Round ID', 'info');
 
-    // 1. ISI VARIABEL GLOBAL INI TERLEBIH DAHULU
-    currentSyncRoundId = inputId; 
-    localStorage.setItem('active_round_id', inputId);
+    // 1. Input HCP untuk User yang sedang login saja
+    const { value: hcp } = await Swal.fire({
+        title: 'Input Handicap Anda',
+        input: 'number',
+        inputLabel: 'HCP ronde ini',
+        inputValue: 0,
+        showCancelButton: true,
+        inputAttributes: { min: 0, max: 36 }
+    });
 
-    // 2. Baru panggil fungsi tarik data
-    await fetchGroupScores();
+    if (hcp === undefined) return; // Batal jika user tekan cancel
 
-    Swal.fire({ icon: 'success', title: 'Synced!', text: `Round: ${currentSyncRoundId}`, timer: 1500 });
+    try {
+        // 2. Update HCP user ke database (tabel profiles)
+        // Asumsi variabel 'user' atau ID user sudah tersedia dari sesi login
+        const userId = (await sb.auth.getUser()).data.user.id; 
+        
+        const { error: updateError } = await sb
+            .from('profiles')
+            .update({ hcp: parseInt(hcp) })
+            .eq('id', userId);
+
+        if (updateError) throw updateError;
+
+        // 3. Lanjutkan proses Sync seperti biasa
+        currentSyncRoundId = inputId; 
+        localStorage.setItem('active_round_id', inputId);
+
+        await fetchGroupScores();
+
+        Swal.fire({ 
+            icon: 'success', 
+            title: 'Synced!', 
+            text: `Round ID: ${currentSyncRoundId} | HCP Anda: ${hcp}`, 
+            timer: 2000 
+        });
+
+    } catch (err) {
+        console.error("Sync Error:", err.message);
+        Swal.fire('Error', 'Gagal update HCP atau tarik data', 'error');
+    }
 }
 
 async function fetchGroupScores() {
@@ -1776,7 +1843,6 @@ async function fetchGroupScores() {
     if (!roundId) return;
 
     try {
-        // 1. Ambil data tracks
         const { data: trackData, error: trackError } = await sb
             .from('tracks')
             .select('*')
@@ -1785,32 +1851,36 @@ async function fetchGroupScores() {
 
         if (trackError) throw trackError;
 
-        // 2. Ambil data profiles (pastikan mengambil semua yang terlibat)
+        // Tarik data profiles termasuk kolom hcp
         const { data: profileData, error: profileError } = await sb
             .from('profiles')
-            .select('id, full_name');
+            .select('id, full_name, hcp');
 
         if (profileError) throw profileError;
 
-        // 3. Gabungkan manual dengan pembersihan string (trim)
+        // Validasi data gabungan
         groupData = trackData.map(t => {
-            // Pastikan perbandingan ID mengabaikan spasi atau perbedaan tipe data
             const userProfile = profileData.find(p => String(p.id).trim() === String(t.user_id).trim());
             return {
                 ...t,
                 profiles: { 
-                    full_name: userProfile ? userProfile.full_name : 'User ' + String(t.user_id).substring(0,4)
+                    full_name: userProfile ? userProfile.full_name : 'User ' + String(t.user_id).substring(0,4),
+                    // Gunakan || 0 untuk mencegah nilai null merusak kalkulasi
+                    hcp: userProfile ? (userProfile.hcp || 0) : 0 
                 }
             };
         });
 
-        console.log("Data Gabungan:", groupData);
+        console.log("Data Gabungan Terupdate:", groupData);
         
-        // Render ke UI
+        // PENTING: Panggil render setelah data siap
         renderMultiplayerTable();
 
     } catch (err) {
         console.error("Gagal tarik data:", err.message);
+        // Beri feedback ke user jika gagal
+        const tbody = document.getElementById('multi-tbody');
+        if(tbody) tbody.innerHTML = `<tr><td colspan='4' style='color:red;'>Error: ${err.message}</td></tr>`;
     }
 }
 
@@ -1819,10 +1889,8 @@ function renderMultiplayerTable() {
     const thead = document.getElementById('multi-thead');
     const tbody = document.getElementById('multi-tbody');
     const roundDisplay = document.getElementById('active-round-display');
-    // 1. Tampilkan Nama Round di Header
-    if (roundDisplay) {
-        roundDisplay.textContent = currentSyncRoundId || "-";
-    }
+
+    if (roundDisplay) { roundDisplay.textContent = currentSyncRoundId || "-"; }
 
     if (!tbody || !groupData || groupData.length === 0) {
         if(tbody) tbody.innerHTML = "<tr><td colspan='4' style='color:white; padding:10px;'>Menunggu data skor...</td></tr>";
@@ -1831,9 +1899,17 @@ function renderMultiplayerTable() {
 
     const players = [...new Set(groupData.map(item => item.profiles?.full_name || 'Anonim'))];
     let playerTotals = players.map(() => 0);
-    let totalParSemuaHole = 0; // VARIABEL BARU UNTUK TOTAL PAR
+    let playerHcpMap = {}; // Untuk menyimpan HCP unik per pemain
+    let totalParSemuaHole = 0;
 
-    // 1. Render Header
+    // Ambil HCP unik untuk masing-masing nama pemain
+    players.forEach(p => {
+        const pData = groupData.find(d => d.profiles?.full_name === p);
+        playerHcpMap[p] = pData ? pData.profiles.hcp : 0;
+    });
+
+    
+    // 1. Render Header (Tetap sama)
     let headerHtml = `<tr style="background: #1a472a; color: white;">
                         <th style="padding: 8px; border: 1px solid #444;">Hole</th>
                         <th style="padding: 8px; border: 1px solid #444;">PAR</th>`;
@@ -1848,8 +1924,6 @@ function renderMultiplayerTable() {
     for (let h = 1; h <= 18; h++) {
         const holeScores = groupData.filter(s => s.hole_number === h);
         const parVal = holeScores.length > 0 ? parseInt(holeScores[0].par) : 0;
-        
-        // Tambahkan par hole ini ke total akumulasi
         totalParSemuaHole += parVal; 
 
         bodyHtml += `<tr style="border-bottom: 1px solid #333;">
@@ -1860,49 +1934,124 @@ function renderMultiplayerTable() {
             const scoreEntry = groupData.find(s => s.hole_number === h && s.profiles?.full_name === player);
             const strokes = scoreEntry ? parseInt(scoreEntry.strokes) : 0;
             playerTotals[idx] += strokes;
-            
             bodyHtml += `<td style="padding: 6px; text-align: center; color: #00ff88;">${strokes || '-'}</td>`;
         });
         bodyHtml += `</tr>`;
     }
 
-    // 3. Render Footer (TOTAL)
-    // Sekarang kolom PAR akan menampilkan totalParSemuaHole
-    let footerHtml = `<tr style="background: rgba(0,255,136,0.1); font-weight: bold; border-top: 2px solid #00ff88;">
-                        <td style="padding: 10px; text-align: center; color: #fff;">TOTAL</td>
-                        <td style="padding: 10px; text-align: center; color: #fff;">${totalParSemuaHole}</td>`; // TOTAL PAR DI SINI
-    
+// 3. Render Footer
+    // Baris GROSS (Total Stroke)
+    let footerHtml = `<tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                        <td style="padding: 10px; text-align: center; color: #fff;">GROSS</td>
+                        <td style="padding: 10px; text-align: center; color: #fff;">${totalParSemuaHole}</td>`;
     playerTotals.forEach(total => {
-        footerHtml += `<td style="padding: 10px; text-align: center; color: #00ff88;">${total}</td>`;
+        footerHtml += `<td style="padding: 10px; text-align: center; color: #fff;">${total}</td>`;
+    });
+    footerHtml += `</tr>`;
+
+    // Baris HCP
+    footerHtml += `<tr style="background: rgba(255,255,255,0.02); font-style: italic;">
+                    <td style="padding: 8px; text-align: center; color: #aaa;">HCP</td>
+                    <td style="padding: 8px; text-align: center;">-</td>`;
+    players.forEach(p => {
+        footerHtml += `<td style="padding: 8px; text-align: center; color: #ffcc00;">(${playerHcpMap[p]})</td>`;
+    });
+    footerHtml += `</tr>`;
+
+    // Baris NET
+    footerHtml += `<tr style="background: rgba(0,255,136,0.15); font-weight: bold; border-top: 2px solid #00ff88;">
+                    <td style="padding: 10px; text-align: center; color: #00ff88;">NET</td>
+                    <td style="padding: 10px; text-align: center; color: #fff;">-</td>`;
+    playerTotals.forEach((total, idx) => {
+        const net = total - playerHcpMap[players[idx]];
+        footerHtml += `<td style="padding: 10px; text-align: center; color: #00ff88;">${net}</td>`;
     });
     footerHtml += `</tr>`;
 
     tbody.innerHTML = bodyHtml + footerHtml;
 }
 
+
+
 // EKSPORT GRUP
 function exportGroupPdf() {
     const element = document.getElementById('pdf-report-hidden');
+    const activeHead = document.getElementById('multi-thead');
+    const activeBody = document.getElementById('multi-tbody');
+
+    if (!activeBody || activeBody.innerHTML.trim() === "" || activeBody.innerHTML.includes("Menunggu data")) {
+        return Swal.fire('Error', 'Data tabel belum siap.', 'error');
+    }
+
+    // 1. Tampilkan container sementara
     element.style.display = 'block';
     
+    // 2. Isi identitas ronde
     document.getElementById('pdf-round-id').innerText = currentSyncRoundId || 'Single Round';
     document.getElementById('pdf-date-multi').innerText = new Date().toLocaleDateString();
 
-    // Re-use tabel dari leaderboard multiplayer ke dalam PDF
+    // 3. PAKSA SEMUA DATA MASUK DALAM SATU TABEL UTUH
     const container = document.getElementById('pdf-tables-container');
-    container.innerHTML = document.getElementById('detail-scorecard-container').innerHTML;
+    container.innerHTML = `
+        <div style="width: 100%; font-family: Arial, sans-serif;">
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #333; font-size: 10px;">
+                <thead style="background-color: #1a472a; color: white;">
+                    ${activeHead.innerHTML}
+                </thead>
+                <tbody style="text-align: center;">
+                    ${activeBody.innerHTML}
+                </tbody>
+            </table>
+        </div>
+    `;
 
+    // 4. Perbaikan Visual untuk Baris HCP & NET agar terbaca di kertas putih
+    const pdfRows = container.querySelectorAll('tr');
+    pdfRows.forEach(row => {
+        row.style.borderBottom = "1px solid #eee";
+        
+        // Cari baris berdasarkan teks di kolom pertama
+        const firstColText = row.cells[0].innerText.toUpperCase();
+        
+        if (firstColText.includes("GROSS")) {
+            row.style.backgroundColor = "#f2f2f2";
+            row.style.fontWeight = "bold";
+        } 
+        else if (firstColText.includes("HCP")) {
+            row.style.color = "#856404"; // Warna kecokelatan/emas
+            row.style.backgroundColor = "#fff3cd"; 
+        } 
+        else if (firstColText.includes("NET")) {
+            row.style.backgroundColor = "#d4edda"; // Hijau muda transparan
+            row.style.color = "#155724";           // Hijau tua
+            row.style.fontWeight = "bold";
+            row.style.fontSize = "12px";           // NET dibuat sedikit lebih besar
+        }
+    });
+
+    // 5. Konfigurasi PDF (Landscape A4)
     const opt = {
-        margin: 10,
-        filename: `TerraGOLF_Report_${currentSyncRoundId}.pdf`,
+        margin: [10, 5, 10, 5],
+        filename: `TerraGOLF_Scorecard_${currentSyncRoundId}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true,
+            logging: false
+        },
+        jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'landscape' 
+        }
     };
 
-    html2pdf().set(opt).from(element).save().then(() => {
-        element.style.display = 'none';
-    });
+    // Beri jeda agar browser selesai menggambar tabel sebelum di-capture
+    setTimeout(() => {
+        html2pdf().set(opt).from(element).save().then(() => {
+            element.style.display = 'none';
+        });
+    }, 1200);
 }
 
 //-----------------

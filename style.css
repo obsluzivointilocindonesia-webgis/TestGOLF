@@ -496,3 +496,26 @@ body, html, #cesiumContainer {
     opacity: 1 !important;
 }
 
+/* Style khusus untuk container laporan PDF */
+#pdf-report-hidden {
+    padding: 20px;
+    color: white;
+    background-color: #0d1b15; /* Background hijau sangat gelap */
+    font-family: sans-serif;
+}
+
+#pdf-report-hidden table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+/* Memastikan warna baris NET tetap hijau saat di-render ke PDF */
+#pdf-report-hidden tr[style*="background: rgba(0, 255, 136, 0.15)"],
+#pdf-report-hidden .net-row-pdf {
+    background-color: #1a472a !important; /* Hijau solid untuk PDF */
+    color: #00ff88 !important;
+}
+
+#pdf-report-hidden th {
+    background-color: #1a472a !important;
+}
