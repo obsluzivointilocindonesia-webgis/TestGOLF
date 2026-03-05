@@ -1570,7 +1570,7 @@ document.getElementById('toggleScorecardBtn').addEventListener('click', () => {
 //back web
 document.getElementById('backToWebBtn').addEventListener('click', () => {
     // Arahkan ke website utama Squarespace kamu
-    window.location.href = 'https://www.obsluzivo.com/terra-golf';
+    window.location.href = 'https://terragolf.id';
 });
 
 //on off tombol2 agar bersih
