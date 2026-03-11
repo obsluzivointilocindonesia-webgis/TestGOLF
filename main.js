@@ -1,5 +1,7 @@
 // 1. KONFIGURASI AWAL
 //tambahan untuk supabase
+let currentSyncRoundId = localStorage.getItem('active_round_id') || ""; 
+const currentFieldCode = "TGR";
 let currentUser = null;
 let userLat = 0, userLon = 0;
 let playerHCPs = {}; // Menyimpan { "Nama Pemain": nilai_hcp }
@@ -35,7 +37,7 @@ let currentContourLayer = null;
 let userLocationMarker = null;
 let currentRoundId = localStorage.getItem('current_round_id');
 let groupData = []; // Variabel penampung data semua pemain
-let currentSyncRoundId = ""; // Menyimpan ID Grup aktif
+
 
 // Jika belum ada (baru pertama kali buka aplikasi), buat satu ID awal
 if (!currentRoundId) {
@@ -667,51 +669,61 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 //-----------------------------------------------
 document.getElementById('saveTrackBtn').addEventListener('click', async () => {
+    // 1. Validasi Input Awal
     const holeId = document.getElementById('holeSelect').value;
-    const currentMerchantId = window.location.hostname.includes('mvg') ? 'MVG' : 'TGR';
-    if (!holeId) return alert("Select Hole # First");
-    if (activePoints.length < 2) return alert("At least 2 points to save track");
-
-    // --- LOGIKA MULTIPLAYER: AMBIL ROUND ID ---
-    // 1. Ambil dari input teks (Multiplayer)
-    const multiplayerId = document.getElementById('roundIdInput').value.trim();
-    // 2. Ambil dari LocalStorage (Sesi saat ini)
-    const localRoundId = localStorage.getItem('current_round_id');
+    const currentMerchantId = 'TGR'; // Terkunci ke TGR sesuai permintaan
     
-    // Tentukan ID mana yang dipakai: Prioritas Input > LocalStorage > Generate Baru
-    const sessionRoundId = multiplayerId || localRoundId || ('session-' + Date.now());
+    if (!holeId) {
+        return Swal.fire('Info', 'Pilih nomor Hole terlebih dahulu!', 'info');
+    }
     
-    // Pastikan tersimpan di LocalStorage agar konsisten untuk hole berikutnya
-    localStorage.setItem('current_round_id', sessionRoundId);
-    // ------------------------------------------
+    if (activePoints.length < 2) {
+        return Swal.fire('Info', 'Minimal butuh 2 titik untuk menyimpan track!', 'info');
+    }
 
-    // UI Feedback
-    if (document.getElementById('score-panel')) document.getElementById('score-panel').style.display = 'block';
-    if (document.getElementById('score-summary-container')) document.getElementById('score-summary-container').style.display = 'none';
-    if (profileChart) profileChart.destroy();
-    document.getElementById('chartContainer').style.display = 'none';
+    // 2. LOGIKA ROUND ID GLOBAL
+    // Mengambil ID dari variabel global atau fallback ke localStorage
+    const sessionRoundId = currentSyncRoundId || localStorage.getItem('active_round_id');
 
-    // 1. Ambil data PAR dari GeoJSON (Kode asli Anda)
+    if (!sessionRoundId || sessionRoundId.length < 5) {
+        return Swal.fire({
+            icon: 'error',
+            title: 'Round ID Tidak Ditemukan',
+            text: 'Silakan isi Group ID dan klik Sync atau New Round terlebih dahulu agar skor tersimpan di grup yang benar.'
+        });
+    }
+
+    // 3. Ambil data PAR dari GeoJSON (Integrasi dengan Viewer Cesium)
     let holePar = 0;
     const dataSources = viewer.dataSources;
     for (let i = 0; i < dataSources.length; i++) {
         const ds = dataSources.get(i);
-        const entity = ds.entities.values.find(e => e.properties && e.properties.HoleNo && e.properties.HoleNo.getValue() == holeId);
+        const entity = ds.entities.values.find(e => 
+            e.properties && 
+            e.properties.HoleNo && 
+            e.properties.HoleNo.getValue() == holeId
+        );
         if (entity && entity.properties.PAR) {
             holePar = parseInt(entity.properties.PAR.getValue());
             break;
         }
     }
 
-    // 2. Hitung Strokes & Konfirmasi
+    // 4. Hitung Strokes & Konfirmasi (Menggunakan Prompt yang menampilkan ID Benar)
     const autoStrokes = activePoints.length - 1;
-    const confirmStrokes = prompt(`Hole ${holeId} (PAR ${holePar})\nDetected ${autoStrokes} strokes.\n\nIs this number correct?`, autoStrokes);
-    if (confirmStrokes === null) return; 
+    const confirmStrokes = prompt(
+        `HOLE ${holeId} (PAR ${holePar})\n` +
+        `ROUND ID: ${sessionRoundId}\n\n` +
+        `Terdeteksi ${autoStrokes} pukulan. Apakah jumlah ini sudah benar?`, 
+        autoStrokes
+    );
+
+    if (confirmStrokes === null) return; // Batal jika user tekan cancel
 
     const finalStrokes = parseInt(confirmStrokes);
     const scoreTerm = getGolfTerm(finalStrokes, holePar);
 
-    // 3. Koordinat Titik
+    // 5. Konversi Titik Koordinat
     const trackPoints = activePoints.map(p => {
         const carto = Cesium.Cartographic.fromCartesian(p.position);
         return {
@@ -721,90 +733,161 @@ document.getElementById('saveTrackBtn').addEventListener('click', async () => {
         };
     });
 
-    // 4. Buat Entry Data
-    const newEntry = {
-        id: Date.now(),
-        roundId: sessionRoundId,
-        date: new Date().toLocaleString('id-ID'),
-        hole: holeId,
-        par: holePar,
-        strokes: finalStrokes,
-        scoreTerm: scoreTerm,
-        points: trackPoints
-    };
+    // 6. SIMPAN KE SUPABASE
+    if (currentUser) {
+        try {
+            // Tampilkan loading sebentar
+            Swal.fire({ title: 'Menyimpan ke Cloud...', didOpen: () => { Swal.showLoading(); } });
 
-    // Simpan ke LocalStorage (Cadangan Offline)
-    let allTracks = JSON.parse(localStorage.getItem('golf_tracks') || '[]');
-    allTracks.push(newEntry);
-    localStorage.setItem('golf_tracks', JSON.stringify(allTracks));
-
-    // 5. SIMPAN KE SUPABASE (MODIFIKASI SYNC)
-    // 5. SIMPAN KE SUPABASE (DENGAN MERCHANT_ID)
-if (currentUser) {
-    try {
-        const { error } = await sb
-            .from('tracks')
-            .insert([{
-                user_id: currentUser.id,
-                merchant_id: currentMerchantId, // <--- TAMBAHKAN INI
-                round_id: String(sessionRoundId),
-                hole_number: parseInt(newEntry.hole),
-                par: newEntry.par,
-                strokes: newEntry.strokes,
-                score_term: newEntry.scoreTerm,
-                points: newEntry.points 
-            }]);
+            const { error } = await sb
+                .from('tracks')
+                .insert([{
+                    user_id: currentUser.id,
+                    merchant_id: currentMerchantId,
+                    round_id: String(sessionRoundId), // Menggunakan ID Format Baru (Global)
+                    hole_number: parseInt(holeId),
+                    par: holePar,
+                    strokes: finalStrokes,
+                    score_term: scoreTerm,
+                    points: trackPoints 
+                }]);
 
             if (error) throw error;
-            console.log("Synchronized to Supabase with Round ID:", sessionRoundId);
             
-            // Panggil refresh tabel multiplayer agar pemain lain muncul
+            console.log("Berhasil Sync dengan ID:", sessionRoundId);
+            
+            // 7. Refresh Leaderboard otomatis agar skor NET muncul
             if (typeof fetchGroupScores === "function") {
-                fetchGroupScores(); 
+                await fetchGroupScores(); 
             }
-        } catch (err) {
-            console.error("Failed to Cloud:", err.message);
-        }
-    }
 
-    // Finalisasi UI
-    document.getElementById('current-score-text').textContent = `${finalStrokes} Strokes (${scoreTerm})`;
-    if (typeof updateSummaryUI === "function") updateSummaryUI();
-    
-    alert(`Saved to Cloud! (Round: ${sessionRoundId})`);
-    clearAll(); // Pastikan fungsi clearAll() Anda sudah ada untuk reset titik di peta
+            Swal.fire({
+                icon: 'success',
+                title: 'Tersimpan!',
+                text: `Skor Hole ${holeId} berhasil disimpan ke grup ${sessionRoundId}`,
+                timer: 2000
+            });
+
+            // Reset UI Peta
+            if (typeof clearAll === "function") clearAll();
+            document.getElementById('current-score-text').textContent = `${finalStrokes} Strokes (${scoreTerm})`;
+            if (typeof updateSummaryUI === "function") updateSummaryUI();
+
+            if (!error) {
+                // 1. Panggil fetchGroupScores agar groupData terbaru ditarik dari DB
+                await fetchGroupScores(); 
+                
+                // 2. Jalankan update summary
+                updateSummaryUI(); 
+            }       
+
+        } catch (err) {
+            console.error("Gagal Simpan:", err.message);
+            Swal.fire('Error', 'Gagal sinkronisasi ke database: ' + err.message, 'error');
+        }
+    } else {
+        Swal.fire('Login Diperlukan', 'Silakan login terlebih dahulu untuk menyimpan skor.', 'warning');
+    }
 });
+
 
 //new ronde
 // A. Fungsi untuk memulai ronde baru
-document.getElementById('newGameBtn').addEventListener('click', () => {
-    if (confirm("New Ronde? Score in scorecard will be reset, but tracking log be saved.")) {
-        // Buat ID unik baru untuk ronde ini
-        const newRoundId = Date.now();
-        localStorage.setItem('current_round_id', newRoundId);
-        
-        // Refresh tampilan (akan jadi NOL karena ID ronde berubah)
-        updateSummaryUI();
-        
-        // Reset UI teks hole saat ini
-        document.getElementById('current-score-text').textContent = "-";
-        alert("New Ronde Start!");
+document.getElementById('newGameBtn').addEventListener('click', async () => {
+    // Ambil input nama grup dari kolom input multiplayer
+    const groupName = document.getElementById('roundIdInput').value.trim();
+    
+    if (!groupName) {
+        return Swal.fire('Info', 'Masukkan Nama Grup terlebih dahulu di kolom Multiplayer Mode', 'info');
+    }
+
+    const confirmStart = await Swal.fire({
+        title: 'Mulai Ronde Baru?',
+        text: "Skor di layar akan direset, namun data lama tetap tersimpan di database.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Mulai!',
+        cancelButtonText: 'Batal'
+    });
+
+    if (confirmStart.isConfirmed) {
+        // 1. Rakit ID untuk Ronde 1
+        const round1Id = buildRoundId(groupName, 1);
+        const round2Id = buildRoundId(groupName, 2);
+        let selectedId = round1Id;
+
+        try {
+            // 2. Cek apakah Ronde 1 sudah memiliki data di tabel tracks
+            const { data: existingR1, error } = await sb
+                .from('tracks')
+                .select('round_id')
+                .eq('round_id', round1Id)
+                .limit(1);
+
+            if (error) throw error;
+
+            // 3. Logika: Jika Ronde 1 sudah ada, tawarkan/otomatis ke Ronde 2
+            if (existingR1 && existingR1.length > 0) {
+                const pickRound = await Swal.fire({
+                    title: 'Ronde 1 Terdeteksi',
+                    text: `Grup ${groupName} sudah main di Ronde 1 hari ini. Lanjut ke Ronde 2?`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Ronde 2',
+                    cancelButtonText: 'Tetap Ronde 1'
+                });
+
+                if (pickRound.isConfirmed) {
+                    selectedId = round2Id;
+                }
+            }
+
+            // 4. Set ID Ronde Baru ke LocalStorage dan Variabel Global
+            currentSyncRoundId = selectedId;
+            localStorage.setItem('active_round_id', selectedId);
+            
+            // Update teks pada input agar user tahu ID yang sedang aktif
+            document.getElementById('roundIdInput').value = selectedId;
+
+            // 5. Reset UI Skor di layar (Summary & Score Text)
+            if (typeof updateSummaryUI === "function") updateSummaryUI();
+            document.getElementById('current-score-text').textContent = "-";
+
+            Swal.fire('Berhasil!', `Ronde Aktif: ${selectedId}`, 'success');
+
+        } catch (err) {
+            console.error("Error starting new round:", err.message);
+            Swal.fire('Error', 'Gagal memeriksa status ronde di database', 'error');
+        }
     }
 });    
 
 function updateSummaryUI() {
-    const allTracks = JSON.parse(localStorage.getItem('golf_tracks') || '[]');
-    const currentRoundId = localStorage.getItem('current_round_id');
+    // 1. Ambil ID aktif dari variabel global
+    const activeId = currentSyncRoundId || localStorage.getItem('active_round_id');
     
-    // FILTER KETAT: Hanya ambil data yang roundId-nya sama dengan ronde aktif
-    const currentTracks = allTracks.filter(track => {
-        return track.roundId == currentRoundId; 
-    });
+    // 2. Ambil data dari groupData (Sumber data yang sama dengan tabel Leaderboard)
+    if (!groupData || groupData.length === 0) {
+        console.warn("Summary: groupData kosong, mencoba fallback ke localStorage...");
+        // Fallback jika database belum ditarik
+        renderFromLocal(activeId);
+        return;
+    }
 
+    // 3. FILTER: Ambil hanya data milik Anda sendiri (currentUser)
+    // Pastikan currentUser.id sudah terdefinisi saat login
+    const myTracks = groupData.filter(t => 
+        String(t.user_id) === String(currentUser.id) && 
+        String(t.round_id) === String(activeId)
+    );
+
+    // 4. Gunakan logika "Latest Score" (seperti versi lama Anda)
     const latestScores = {};
-    currentTracks.forEach(track => {
-        // Jika ada input ganda di hole yang sama pada ronde yang sama, ambil yang terakhir
-        latestScores[track.hole] = { strokes: track.strokes, par: track.par };
+    myTracks.forEach(track => {
+        latestScores[track.hole_number] = { 
+            strokes: parseInt(track.strokes), 
+            par: parseInt(track.par) 
+        };
     });
 
     let totalStrokes = 0;
@@ -816,23 +899,47 @@ function updateSummaryUI() {
         totalPar += latestScores[hole].par;
     }
 
-    // Update elemen HTML
-    document.getElementById('total-strokes-val').textContent = totalStrokes;
-    document.getElementById('total-par-val').textContent = totalPar;
-    document.getElementById('holes-played-val').textContent = `${holesPlayed}/18`;
+    // 5. Render ke elemen HTML
+    updateSummaryDOM(totalStrokes, totalPar, holesPlayed);
+}
 
-    // Reset status Over/Under
-    const statusEl = document.getElementById('over-under-status');
-    if (holesPlayed === 0) {
-        statusEl.textContent = "No Data";
-        statusEl.style.color = "#aaa";
-    } else {
-        const diff = totalStrokes - totalPar;
-        statusEl.textContent = diff === 0 ? "EVEN" : (diff > 0 ? `+${diff}` : `${diff}`);
-        statusEl.style.color = diff > 0 ? "#ff4444" : (diff < 0 ? "#00ff88" : "white");
+// Fungsi Helper untuk Update Teks di Layar
+function updateSummaryDOM(strokes, par, holes) {
+    // Coba semua kemungkinan ID elemen yang mungkin Anda gunakan
+    const sVal = document.getElementById('total-strokes-val') || document.getElementById('total-strokes-summary');
+    const pVal = document.getElementById('total-par-val') || document.getElementById('total-par-summary');
+    const hVal = document.getElementById('holes-played-val') || document.getElementById('holes-played-summary');
+    const statusEl = document.getElementById('over-under-status') || document.getElementById('no-data-msg');
+
+    if (sVal) sVal.textContent = strokes;
+    if (pVal) pVal.textContent = par;
+    if (hVal) hVal.textContent = `${holes}/18`;
+
+    if (statusEl) {
+        if (holes === 0) {
+            statusEl.textContent = "No Data";
+            statusEl.style.color = "#aaa";
+        } else {
+            const diff = strokes - par;
+            statusEl.textContent = diff === 0 ? "EVEN" : (diff > 0 ? `+${diff}` : `${diff}`);
+            statusEl.style.color = diff > 0 ? "#ff4444" : "#00ff88";
+        }
     }
 }
 
+// Fungsi Fallback jika Database belum siap
+function renderFromLocal(activeId) {
+    const allTracks = JSON.parse(localStorage.getItem('golf_tracks') || '[]');
+    const currentTracks = allTracks.filter(t => t.roundId == activeId);
+    
+    let tS = 0, tP = 0;
+    const scores = {};
+    currentTracks.forEach(t => scores[t.hole] = { s: parseInt(t.strokes), p: parseInt(t.par) });
+    
+    for (const h in scores) { tS += scores[h].s; tP += scores[h].p; }
+    updateSummaryDOM(tS, tP, Object.keys(scores).length);
+}
+//---------------------------------------------
 
 //---------minimize score container
 document.getElementById('score-summary-container').addEventListener('click', function(e) {
@@ -1791,58 +1898,73 @@ async function activatePremium(userId) {
 }
 
 //MULTIPLE PLAYER
-async function syncMultiplayer() {
-    const inputId = document.getElementById('roundIdInput').value;
-    if (!inputId) return Swal.fire('Info', 'Masukkan Round ID', 'info');
+//Fungsi untuk membuat Round id Unitk tambahan Tanggal
+function getFormattedDate() {
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yy = String(today.getFullYear()).slice(-2);
+    return dd + mm + yy;
+}
 
-    // 1. Input HCP untuk User yang sedang login saja
+// Fungsi untuk membuat Round ID sesuai aturan: TGR-gditb94-031026-1
+function buildRoundId(groupName, roundNumber) {
+    const fieldCode = "TGR"; // Bisa dinamis sesuai lapangan aktif tapi karena tiap lapangan
+    //mempunya skrip sendiri, jadi dibuat statis
+    const dateStr = getFormattedDate();
+    return `${fieldCode}-${groupName}-${dateStr}-${roundNumber}`;
+}
+// end of buat tanggal round id
+
+async function syncMultiplayer() {
+    const groupInput = document.getElementById('roundIdInput').value.trim();
+    if (!groupInput) return Swal.fire('Info', 'Masukkan Nama Grup', 'info');
+
+    // Rakit ID format baru: TGR-gditb94-DDMMYY-1
+    const dateStr = getFormattedDate(); // Pastikan fungsi helper ini sudah ada
+    const finalRoundId = `${currentFieldCode}-${groupInput}-${dateStr}-1`;
+
+
+    // ISI KE VARIABEL GLOBAL
+    currentSyncRoundId = finalRoundId; 
+    
+    // Update tampilan input agar user melihat ID lengkapnya
+    document.getElementById('roundIdInput').value = finalRoundId;
+    localStorage.setItem('active_round_id', finalRoundId);
+
     const { value: hcp } = await Swal.fire({
         title: 'Input Handicap Anda',
         input: 'number',
         inputLabel: 'HCP ronde ini',
         inputValue: 0,
-        showCancelButton: true,
-        inputAttributes: { min: 0, max: 36 }
+        showCancelButton: true
     });
 
-    if (hcp === undefined) return; // Batal jika user tekan cancel
+    if (hcp === undefined) return;
 
     try {
-        // 2. Update HCP user ke database (tabel profiles)
-        // Asumsi variabel 'user' atau ID user sudah tersedia dari sesi login
         const userId = (await sb.auth.getUser()).data.user.id; 
-        
-        const { error: updateError } = await sb
-            .from('profiles')
-            .update({ hcp: parseInt(hcp) })
-            .eq('id', userId);
+        await sb.from('profiles').update({ hcp: parseInt(hcp) }).eq('id', userId);
 
-        if (updateError) throw updateError;
-
-        // 3. Lanjutkan proses Sync seperti biasa
-        currentSyncRoundId = inputId; 
-        localStorage.setItem('active_round_id', inputId);
+        // Simpan ID yang sudah dirakit
+        currentSyncRoundId = finalRoundId; 
+        localStorage.setItem('active_round_id', finalRoundId);
 
         await fetchGroupScores();
 
-        Swal.fire({ 
-            icon: 'success', 
-            title: 'Synced!', 
-            text: `Round ID: ${currentSyncRoundId} | HCP Anda: ${hcp}`, 
-            timer: 2000 
-        });
-
+        Swal.fire('Synced!', `Menggunakan Round ID: ${currentSyncRoundId}`, 'success');
     } catch (err) {
-        console.error("Sync Error:", err.message);
-        Swal.fire('Error', 'Gagal update HCP atau tarik data', 'error');
+        Swal.fire('Error', 'Gagal sinkronisasi data', 'error');
     }
 }
 
 async function fetchGroupScores() {
-    const roundId = document.getElementById('roundIdInput').value || currentSyncRoundId;
+    // Gunakan currentSyncRoundId yang sudah dirakit di fungsi sync
+    const roundId = currentSyncRoundId;
     if (!roundId) return;
 
     try {
+        // Filter spesifik berdasarkan Round ID yang unik
         const { data: trackData, error: trackError } = await sb
             .from('tracks')
             .select('*')
@@ -1851,36 +1973,23 @@ async function fetchGroupScores() {
 
         if (trackError) throw trackError;
 
-        // Tarik data profiles termasuk kolom hcp
-        const { data: profileData, error: profileError } = await sb
-            .from('profiles')
-            .select('id, full_name, hcp');
+        const { data: profileData } = await sb.from('profiles').select('id, full_name, hcp');
 
-        if (profileError) throw profileError;
-
-        // Validasi data gabungan
         groupData = trackData.map(t => {
             const userProfile = profileData.find(p => String(p.id).trim() === String(t.user_id).trim());
             return {
                 ...t,
                 profiles: { 
                     full_name: userProfile ? userProfile.full_name : 'User ' + String(t.user_id).substring(0,4),
-                    // Gunakan || 0 untuk mencegah nilai null merusak kalkulasi
                     hcp: userProfile ? (userProfile.hcp || 0) : 0 
                 }
             };
         });
 
-        console.log("Data Gabungan Terupdate:", groupData);
-        
-        // PENTING: Panggil render setelah data siap
         renderMultiplayerTable();
-
     } catch (err) {
-        console.error("Gagal tarik data:", err.message);
-        // Beri feedback ke user jika gagal
         const tbody = document.getElementById('multi-tbody');
-        if(tbody) tbody.innerHTML = `<tr><td colspan='4' style='color:red;'>Error: ${err.message}</td></tr>`;
+        if(tbody) tbody.innerHTML = `<tr><td colspan='4'>Data tidak ditemukan untuk ID ini.</td></tr>`;
     }
 }
 
