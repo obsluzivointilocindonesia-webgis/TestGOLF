@@ -792,13 +792,20 @@ document.getElementById('saveTrackBtn').addEventListener('click', async () => {
 
 
 //new ronde
-// A. Fungsi untuk memulai ronde baru
 document.getElementById('newGameBtn').addEventListener('click', async () => {
-    // Ambil input nama grup dari kolom input multiplayer
-    const groupName = document.getElementById('roundIdInput').value.trim();
+    // 1. Ambil input. Jika input sudah berisi format lengkap, ambil nama grup aslinya saja.
+    let rawInput = document.getElementById('roundIdInput').value.trim();
     
-    if (!groupName) {
+    if (!rawInput) {
         return Swal.fire('Info', 'Masukkan Nama Grup terlebih dahulu di kolom Multiplayer Mode', 'info');
+    }
+
+    // LOGIKA PEMBERSIHAN: Jika user memasukkan 'TGR-gditb94-031026-1', kita ambil 'gditb94' saja
+    let groupName = rawInput;
+    if (rawInput.includes('-')) {
+        const parts = rawInput.split('-');
+        // Asumsi format: KODE-GRUP-TANGGAL-RONDE. Nama grup ada di index 1.
+        groupName = parts.length >= 2 ? parts[1] : rawInput;
     }
 
     const confirmStart = await Swal.fire({
@@ -811,12 +818,15 @@ document.getElementById('newGameBtn').addEventListener('click', async () => {
     });
 
     if (confirmStart.isConfirmed) {
-        // 1. Rakit ID untuk Ronde 1
+        // Gunakan fungsi buildRoundId yang sudah ada untuk merakit format TGR-gditb94-DDMMYY-X
         const round1Id = buildRoundId(groupName, 1);
         const round2Id = buildRoundId(groupName, 2);
         let selectedId = round1Id;
 
         try {
+            // Tampilkan loading saat cek database
+            Swal.fire({ title: 'Memeriksa Database...', didOpen: () => { Swal.showLoading(); } });
+
             // 2. Cek apakah Ronde 1 sudah memiliki data di tabel tracks
             const { data: existingR1, error } = await sb
                 .from('tracks')
@@ -826,11 +836,11 @@ document.getElementById('newGameBtn').addEventListener('click', async () => {
 
             if (error) throw error;
 
-            // 3. Logika: Jika Ronde 1 sudah ada, tawarkan/otomatis ke Ronde 2
+            // 3. Jika Ronde 1 sudah ada data, tawarkan pindah ke Ronde 2
             if (existingR1 && existingR1.length > 0) {
                 const pickRound = await Swal.fire({
                     title: 'Ronde 1 Terdeteksi',
-                    text: `Grup ${groupName} sudah main di Ronde 1 hari ini. Lanjut ke Ronde 2?`,
+                    text: `Grup ${groupName} sudah memiliki data di Ronde 1. Gunakan Ronde 2?`,
                     icon: 'question',
                     showCancelButton: true,
                     confirmButtonText: 'Ya, Ronde 2',
@@ -842,25 +852,28 @@ document.getElementById('newGameBtn').addEventListener('click', async () => {
                 }
             }
 
-            // 4. Set ID Ronde Baru ke LocalStorage dan Variabel Global
+            // 4. Set ID Ronde Aktif ke Global & LocalStorage
             currentSyncRoundId = selectedId;
             localStorage.setItem('active_round_id', selectedId);
+            localStorage.setItem('current_round_id', selectedId);
             
             // Update teks pada input agar user tahu ID yang sedang aktif
             document.getElementById('roundIdInput').value = selectedId;
 
-            // 5. Reset UI Skor di layar (Summary & Score Text)
-            if (typeof updateSummaryUI === "function") updateSummaryUI();
+            // 5. Reset UI & Refresh Data
+            if (typeof clearAll === "function") clearAll(); // Bersihkan titik di peta
+            if (typeof fetchGroupScores === "function") await fetchGroupScores(); // Tarik data ronde terpilih
+            
             document.getElementById('current-score-text').textContent = "-";
 
             Swal.fire('Berhasil!', `Ronde Aktif: ${selectedId}`, 'success');
 
         } catch (err) {
             console.error("Error starting new round:", err.message);
-            Swal.fire('Error', 'Gagal memeriksa status ronde di database', 'error');
+            Swal.fire('Error', 'Gagal memeriksa status ronde', 'error');
         }
     }
-});    
+}); 
 
 function updateSummaryUI() {
     // 1. Ambil ID aktif dari variabel global
