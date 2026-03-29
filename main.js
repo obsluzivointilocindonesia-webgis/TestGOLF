@@ -1068,7 +1068,7 @@ async function deleteTrackHistory() {
     if (!currentUser) return alert("Please login first");
 
     // 1. Deteksi Merchant Saat Ini
-    const currentMerchantId = window.location.hostname.includes('mvg') ? 'MVG' : 'TGR';
+    const currentMerchantId = 'TGR';
 
     // 2. Ambil data HANYA untuk user ini DAN lapangan ini
     const { data: cloudTracks, error } = await sb
@@ -1141,7 +1141,7 @@ document.getElementById('deleteHistoryBtn').addEventListener('click', async () =
     
     // Setelah dihapus di cloud, bersihkan visual di peta agar tidak membingungkan
     if (typeof clearAll === "function") {
-        clearAll();
+    clearAll();
     }
     
     // Update tabel scorecard agar baris yang dihapus hilang dari layar
